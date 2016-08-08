@@ -6,12 +6,13 @@ import javax.persistence.*;
 
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-public abstract class SingleTableBase implements Serializable, Base<SingleTableBase> {
+public abstract class SingleTableBase implements Serializable, Base<SingleTableBase, SingleTableEmbeddable> {
     private static final long serialVersionUID = 1L;
 
     private Long id;
     private String name;
     private SingleTableBase parent;
+    private SingleTableEmbeddable embeddable = new SingleTableEmbeddable();
     private List<SingleTableBase> list = new ArrayList<SingleTableBase>();
     private Set<SingleTableBase> children = new HashSet<SingleTableBase>();
     private Map<String, SingleTableBase> map = new HashMap<String, SingleTableBase>();
@@ -48,6 +49,15 @@ public abstract class SingleTableBase implements Serializable, Base<SingleTableB
 
     public void setParent(SingleTableBase parent) {
         this.parent = parent;
+    }
+
+    @Embedded
+    public SingleTableEmbeddable getEmbeddable() {
+        return embeddable;
+    }
+
+    public void setEmbeddable(SingleTableEmbeddable embeddable) {
+        this.embeddable = embeddable;
     }
 
     @OneToMany

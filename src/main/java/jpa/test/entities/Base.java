@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public interface Base<T extends Base> {
+public interface Base<T extends Base, B extends BaseEmbeddable<T>> {
     
     public Long getId();
 
@@ -18,6 +18,10 @@ public interface Base<T extends Base> {
     public T getParent();
 
     public void setParent(T parent);
+
+    public B getEmbeddable();
+
+    public void setEmbeddable(B embeddable);
 
     public List<? extends T> getList();
 

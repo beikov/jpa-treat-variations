@@ -6,12 +6,13 @@ import javax.persistence.*;
 
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
-public abstract class JoinedBase implements Serializable, Base<JoinedBase> {
+public abstract class JoinedBase implements Serializable, Base<JoinedBase, JoinedEmbeddable> {
     private static final long serialVersionUID = 1L;
 
     private Long id;
     private String name;
     private JoinedBase parent;
+    private JoinedEmbeddable embeddable = new JoinedEmbeddable();
     private List<JoinedBase> list = new ArrayList<JoinedBase>();
     private Set<JoinedBase> children = new HashSet<JoinedBase>();
     private Map<String, JoinedBase> map = new HashMap<String, JoinedBase>();
@@ -48,6 +49,15 @@ public abstract class JoinedBase implements Serializable, Base<JoinedBase> {
 
     public void setParent(JoinedBase parent) {
         this.parent = parent;
+    }
+
+    @Embedded
+    public JoinedEmbeddable getEmbeddable() {
+        return embeddable;
+    }
+
+    public void setEmbeddable(JoinedEmbeddable embeddable) {
+        this.embeddable = embeddable;
     }
 
     @OneToMany
