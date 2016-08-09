@@ -6,8 +6,10 @@ import javax.persistence.Basic;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.Table;
 
 @Entity
+@Table(name = "int_id_entity")
 public class IntIdEntity implements Serializable {
     private static final long serialVersionUID = 1L;
 

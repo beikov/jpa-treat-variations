@@ -14,7 +14,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -74,12 +73,13 @@ import org.junit.runners.Parameterized;
  * 
  * Findings so far
  * 
- * Eclipselink 
+ * Eclipselink
+ *  - does not support map in embeddables(BUGREPORT!)
  *  - has no support for treat in conjunction with table per class
  *  - wrongly assumes it can filter when encountering a treat
  *  - does not support root path treat in FROM
  *
- * Hibernate 
+ * Hibernate
  *  - only supports treat in the FROM clause: https://hibernate.atlassian.net/browse/HHH-10988
  *  - doesn't properly optimize unnecessary joins away: https://hibernate.atlassian.net/browse/HHH-10887
  * 
@@ -161,7 +161,9 @@ public class TreatVariationsTest {
         TablePerClassSub1 tpc1Parent = new TablePerClassSub1("tpc1.parent");
         TablePerClassSub2 tpc2Parent = new TablePerClassSub2("tpc2.parent");
         
-        persist(em, i1, tpc1, tpc2, tpc1Parent, tpc2Parent);
+        // The Java compiler can't up-cast automatically, maybe a bug?
+        //persist(em, i1, tpc1, tpc2, tpc1Parent, tpc2Parent);
+        persist(em, i1, (Sub1) tpc1, (Sub2) tpc2, (Sub1) tpc1Parent, (Sub2) tpc2Parent);
         
         tx.commit();
         em.close();
@@ -170,10 +172,10 @@ public class TreatVariationsTest {
     private void persist(
             EntityManager em,
             IntIdEntity i1,
-            Sub1<? extends Base<?, ?>, ? extends BaseEmbeddable<?>> s1,
-            Sub2<? extends Base<?, ?>, ? extends BaseEmbeddable<?>> s2,
-            Sub1<? extends Base<?, ?>, ? extends BaseEmbeddable<?>> s1Parent,
-            Sub2<? extends Base<?, ?>, ? extends BaseEmbeddable<?>> s2Parent) {
+            Sub1<? extends Base<?, ?>, ? extends BaseEmbeddable<?>, ? extends Sub1Embeddable<?>> s1,
+            Sub2<? extends Base<?, ?>, ? extends BaseEmbeddable<?>, ? extends Sub2Embeddable<?>> s2,
+            Sub1<? extends Base<?, ?>, ? extends BaseEmbeddable<?>, ? extends Sub1Embeddable<?>> s1Parent,
+            Sub2<? extends Base<?, ?>, ? extends BaseEmbeddable<?>, ? extends Sub2Embeddable<?>> s2Parent) {
         
         
         em.persist(s1Parent);
@@ -183,25 +185,57 @@ public class TreatVariationsTest {
         
         s1Parent.setSub1Value(101);
         s1Parent.getSub1Embeddable().setSomeValue(1001);
+        s1Parent.getEmbeddable1().setSub1SomeValue(101);
         s1.setSub1Value(1);
+        s1.getEmbeddable1().setSub1SomeValue(1);
         s1.setRelation1(i1);
         ((Sub1) s1).setParent(s1Parent);
         ((Sub1) s1).setParent1(s1Parent);
+        ((BaseEmbeddable) s1.getEmbeddable()).setParent(s1Parent);
+        ((Sub1Embeddable) s1.getEmbeddable1()).setSub1Parent(s1Parent);
         ((List<Base<?, ?>>) s1.getList()).add(s1Parent);
-        ((List<Base<?, ?>>) s1.getList()).add(s2);
+        ((List<Base<?, ?>>) s1.getList1()).add(s1Parent);
+        ((List<Base<?, ?>>) s1.getEmbeddable().getList()).add(s1Parent);
+        ((List<Base<?, ?>>) s1.getEmbeddable1().getSub1List()).add(s1Parent);
+        ((List<Base<?, ?>>) s1Parent.getList()).add(s2);
+        ((List<Base<?, ?>>) s1Parent.getList1()).add(s2);
+        ((List<Base<?, ?>>) s1Parent.getEmbeddable().getList()).add(s2);
+        ((List<Base<?, ?>>) s1Parent.getEmbeddable1().getSub1List()).add(s2);
         ((Map<String, Base<?, ?>>) s1.getMap()).put(s1Parent.getName(), s1Parent);
-        ((Map<String, Base<?, ?>>) s1.getMap()).put(s2.getName(), s2);
+        ((Map<String, Base<?, ?>>) s1.getMap1()).put(s1Parent.getName(), s1Parent);
+        ((Map<String, Base<?, ?>>) s1.getEmbeddable().getMap()).put(s1Parent.getName(), s1Parent);
+        ((Map<String, Base<?, ?>>) s1.getEmbeddable1().getSub1Map()).put(s1Parent.getName(), s1Parent);
+        ((Map<String, Base<?, ?>>) s1Parent.getMap()).put(s2.getName(), s2);
+        ((Map<String, Base<?, ?>>) s1Parent.getMap1()).put(s2.getName(), s2);
+        ((Map<String, Base<?, ?>>) s1Parent.getEmbeddable().getMap()).put(s2.getName(), s2);
+        ((Map<String, Base<?, ?>>) s1Parent.getEmbeddable1().getSub1Map()).put(s2.getName(), s2);
         
         s2Parent.setSub2Value(102);
         s2Parent.getSub2Embeddable().setSomeValue(1002);
+        s2Parent.getEmbeddable2().setSub2SomeValue(102);
         s2.setSub2Value(2);
+        s2.getEmbeddable2().setSub2SomeValue(2);
         s2.setRelation2(i1);
         ((Sub2) s2).setParent(s2Parent);
         ((Sub2) s2).setParent2(s2Parent);
+        ((BaseEmbeddable) s2.getEmbeddable()).setParent(s2Parent);
+        ((Sub2Embeddable) s2.getEmbeddable2()).setSub2Parent(s2Parent);
         ((List<Base<?, ?>>) s2.getList()).add(s2Parent);
-        ((List<Base<?, ?>>) s2.getList()).add(s1);
+        ((List<Base<?, ?>>) s2.getList2()).add(s2Parent);
+        ((List<Base<?, ?>>) s2.getEmbeddable().getList()).add(s2Parent);
+        ((List<Base<?, ?>>) s2.getEmbeddable2().getSub2List()).add(s2Parent);
+        ((List<Base<?, ?>>) s2Parent.getList()).add(s1);
+        ((List<Base<?, ?>>) s2Parent.getList2()).add(s1);
+        ((List<Base<?, ?>>) s2Parent.getEmbeddable().getList()).add(s1);
+        ((List<Base<?, ?>>) s2Parent.getEmbeddable2().getSub2List()).add(s1);
         ((Map<String, Base<?, ?>>) s2.getMap()).put(s2Parent.getName(), s2Parent);
-        ((Map<String, Base<?, ?>>) s2.getMap()).put(s1.getName(), s1);
+        ((Map<String, Base<?, ?>>) s2.getMap2()).put(s2Parent.getName(), s2Parent);
+        ((Map<String, Base<?, ?>>) s2.getEmbeddable().getMap()).put(s2Parent.getName(), s2Parent);
+        ((Map<String, Base<?, ?>>) s2.getEmbeddable2().getSub2Map()).put(s2Parent.getName(), s2Parent);
+        ((Map<String, Base<?, ?>>) s2Parent.getMap()).put(s1.getName(), s1);
+        ((Map<String, Base<?, ?>>) s2Parent.getMap2()).put(s1.getName(), s1);
+        ((Map<String, Base<?, ?>>) s2Parent.getEmbeddable().getMap()).put(s1.getName(), s1);
+        ((Map<String, Base<?, ?>>) s2Parent.getEmbeddable2().getSub2Map()).put(s1.getName(), s1);
     }
     
     private void persist(
@@ -224,7 +258,7 @@ public class TreatVariationsTest {
      ************************************************************/
     
     @Test
-    public void selectTreatedRoot() {
+    public void selectTreatedRootBasic() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because filters subtype
         // - SingleTable   : issues 1 query, FAILS because filters subtype
@@ -238,7 +272,7 @@ public class TreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Integer> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b", Integer.class);
-        System.out.println("selectTreatedRoot-" + strategy);
+        System.out.println("selectTreatedRootBasic-" + strategy);
         
         // From => 4 instances
         Assert.assertEquals(4, bases.size());
@@ -249,7 +283,7 @@ public class TreatVariationsTest {
     }
     
     @Test
-    public void selectMultipleTreatedRoot() {
+    public void selectMultipleTreatedRootBasic() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because filters subtype
         // - SingleTable   : issues 1 query, FAILS because filters subtype
@@ -263,7 +297,7 @@ public class TreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Object[]> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).sub1Value, TREAT(b AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b", Object[].class);
-        System.out.println("selectMultipleTreatedRoot-" + strategy);
+        System.out.println("selectMultipleTreatedRootBasic-" + strategy);
         
         // From => 4 instances
         Assert.assertEquals(4, bases.size());
@@ -274,7 +308,7 @@ public class TreatVariationsTest {
     }
     
     @Test
-    public void selectTreatedParentRoot() {
+    public void selectTreatedParentRootBasic() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because query is completely wrong
         // - SingleTable   : issues 1 query, successful, but would fail because filters subtype
@@ -288,7 +322,7 @@ public class TreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Integer> bases = list("SELECT (SELECT SUM(TREAT(b AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Integer.class);
-        System.out.println("selectTreatedParentRoot-" + strategy);
+        System.out.println("selectTreatedParentRootBasic-" + strategy);
         
         // From => 4 instances
         // There are 2 IntIdEntity instances per Base instance
@@ -302,7 +336,7 @@ public class TreatVariationsTest {
     }
     
     @Test
-    public void selectMultipleTreatedParentRoot() {
+    public void selectMultipleTreatedParentRootBasic() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because query is completely wrong
         // - SingleTable   : issues 1 query, successful, but would fail because filters subtype
@@ -316,7 +350,7 @@ public class TreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Object[]> bases = list("SELECT (SELECT SUM(TREAT(b AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name), (SELECT SUM(TREAT(b AS " + strategy + "Sub2).sub2Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Object[].class);
-        System.out.println("selectMultipleTreatedParentRoot-" + strategy);
+        System.out.println("selectMultipleTreatedParentRootBasic-" + strategy);
         
         // From => 4 instances
         // There are 2 IntIdEntity instances per Base instance
@@ -331,7 +365,114 @@ public class TreatVariationsTest {
     }
     
     @Test
-    public void whereTreatedRoot() {
+    public void selectTreatedRootEmbeddableBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treat embeddable path parsing fails
+        // - SingleTable   : not working, treat embeddable path parsing fails
+        // - TablePerClass : not working, treat embeddable path parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).sub1Embeddable.someValue FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedRootEmbeddableBasic-" + strategy);
+        
+        // From => 4 instances
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 1001);
+    }
+    
+    @Test
+    public void selectMultipleTreatedRootEmbeddableBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treat embeddable path parsing fails
+        // - SingleTable   : not working, treat embeddable path parsing fails
+        // - TablePerClass : not working, treat embeddable path parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).sub1Embeddable.someValue, TREAT(b AS " + strategy + "Sub2).sub2Embeddable.someValue FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedRootEmbeddableBasic-" + strategy);
+        
+        // From => 4 instances
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 1001, null });
+        assertRemoved(bases, new Object[] { null, 1002 });
+    }
+    
+    @Test
+    public void selectTreatedParentRootEmbeddableBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, successful, but would fail because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT SUM(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedParentRootEmbeddableBasic-" + strategy);
+        
+        // From => 4 instances
+        // There are 2 IntIdEntity instances per Base instance
+        // For the 2 Sub1 instances, their sub1SomeValue is doubled
+        // For the 2 Sub2 instances, null is emmitted
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 2L);
+        assertRemoved(bases, 202L);
+    }
+    
+    @Test
+    public void selectMultipleTreatedParentRootEmbeddableBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, successful, but would fail because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT SUM(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue) FROM IntIdEntity i WHERE i.name = b.name), (SELECT SUM(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2SomeValue) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedParentRootEmbeddableBasic-" + strategy);
+        
+        // From => 4 instances
+        // There are 2 IntIdEntity instances per Base instance
+        // For the 2 Sub1 instances, their sub1SomeValue is doubled
+        // For the 2 Sub2 instances, null is emmitted
+        // The second subquery is like the first but for Sub2
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { 2L,   null });
+        assertRemoved(bases, new Object[] { 202L, null });
+        assertRemoved(bases, new Object[] { null, 4L   });
+        assertRemoved(bases, new Object[] { null, 204L });
+    }
+    
+    @Test
+    public void whereTreatedRootBasic() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because filters subtype
         // - SingleTable   : issues 1 query, FAILS because filters subtype
@@ -345,10 +486,10 @@ public class TreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Integer> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).sub1Value, 0) < 100", Integer.class);
-        System.out.println("whereTreatedRoot-" + strategy);
+        System.out.println("whereTreatedRootBasic-" + strategy);
         
         // From => 4 instances
-        // Where => 3 instances because 1 Sub1 has sub1Value 101, the other 1 and Sub2 use 0 because of coalesce
+        // Where => 3 instances because 1 Sub1 has sub1Value 101, the other has 1 and Sub2s use 0 because of coalesce
         Assert.assertEquals(3, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, null);
@@ -356,7 +497,7 @@ public class TreatVariationsTest {
     }
     
     @Test
-    public void whereMultipleTreatedRoot() {
+    public void whereMultipleTreatedRootBasic() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because filters subtype
         // - SingleTable   : issues 1 query, FAILS because filters subtype
@@ -370,11 +511,61 @@ public class TreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Integer> bases = list("SELECT COALESCE(TREAT(b AS " + strategy + "Sub1).sub1Value, TREAT(b AS " + strategy + "Sub2).sub2Value) FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).sub1Value, 0) < 100 AND COALESCE(TREAT(b AS " + strategy + "Sub2).sub2Value, 0) < 100", Integer.class);
-        System.out.println("whereMultipleTreatedRoot-" + strategy);
+        System.out.println("whereMultipleTreatedRootBasic-" + strategy);
         
         // From => 4 instances
-        // Where => 2 instances because 1 Sub1 has sub1Value 101, the other 1 and Sub2 use 0 because of coalesce
-        // and 1 Sub2 has sub2Value 102, the other 2 and Sub1 uses 0 because of coalesce
+        // Where => 2 instances because 1 Sub1 has sub1Value 101, the other has 1 and Sub2s use 0 because of coalesce
+        // and 1 Sub2 has sub2Value 102, the other has 2 and Sub1 uses 0 because of coalesce
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, 1);
+        assertRemoved(bases, 2);
+    }
+    
+    @Test
+    public void whereTreatedRootEmbeddableBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue, 0) < 100", Integer.class);
+        System.out.println("whereTreatedRootEmbeddableBasic-" + strategy);
+        
+        // From => 4 instances
+        // Where => 3 instances because 1 Sub1 has sub1Value 101, the other has 1 and Sub2s use 0 because of coalesce
+        Assert.assertEquals(3, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 1);
+    }
+    
+    @Test
+    public void whereMultipleTreatedRootEmbeddableBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT COALESCE(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue, TREAT(b AS " + strategy + "Sub2).embeddable2.sub2SomeValue) FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue, 0) < 100 AND COALESCE(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2SomeValue, 0) < 100", Integer.class);
+        System.out.println("whereMultipleTreatedRootEmbeddableBasic-" + strategy);
+        
+        // From => 4 instances
+        // Where => 2 instances because 1 Sub1 has sub1SomeValue 101, the other has 1 and Sub2s use 0 because of coalesce
+        // and 1 Sub2 has sub2SomeValue 102, the other has 2 and Sub1 uses 0 because of coalesce
         Assert.assertEquals(2, bases.size());
         assertRemoved(bases, 1);
         assertRemoved(bases, 2);
@@ -385,7 +576,7 @@ public class TreatVariationsTest {
      ************************************************************/
     
     @Test
-    public void selectTreatedRelation() {
+    public void selectTreatedManyToOne() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because filters subtype
         // - SingleTable   : issues 1 query, FAILS because filters subtype
@@ -399,7 +590,7 @@ public class TreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Integer> bases = list("SELECT TREAT(b.parent AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b", Integer.class);
-        System.out.println("selectTreatedRelation-" + strategy);
+        System.out.println("selectTreatedManyToOne-" + strategy);
         
         // From => 4 instances
         // Inner join on b.parent => 2 instance
@@ -409,7 +600,7 @@ public class TreatVariationsTest {
     }
     
     @Test
-    public void selectMultipleTreatedRelation() {
+    public void selectMultipleTreatedManyToOne() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because filters subtype
         // - SingleTable   : issues 1 query, FAILS because filters subtype
@@ -423,11 +614,1005 @@ public class TreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Object[]> bases = list("SELECT TREAT(b.parent AS " + strategy + "Sub1).sub1Value, TREAT(b.parent AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b", Object[].class);
-        System.out.println("selectMultipleTreatedRelation-" + strategy);
+        System.out.println("selectMultipleTreatedManyToOne-" + strategy);
         
         // From => 4 instances
         // Inner join on b.parent => 2 instance
         Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void selectTreatedParentManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT SUM(TREAT(b.parent AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedParentManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        // The sub1Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 202L);
+    }
+    
+    @Test
+    public void selectMultipleTreatedParentManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, FAILS because query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT SUM(TREAT(b.parent AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name), (SELECT SUM(TREAT(b.parent AS " + strategy + "Sub2).sub2Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedParentManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        // The sub1Value and sub2Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 202L, null });
+        assertRemoved(bases, new Object[] { null, 204L });
+    }
+    
+    @Test
+    public void selectTreatedEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(b.embeddable.parent AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void selectMultipleTreatedEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT TREAT(b.embeddable.parent AS " + strategy + "Sub1).sub1Value, TREAT(b.embeddable.parent AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void selectTreatedParentEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT SUM(TREAT(b.embeddable.parent AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedParentEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        // The sub1Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 202L);
+    }
+    
+    @Test
+    public void selectMultipleTreatedParentEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, FAILS because query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT SUM(TREAT(b.embeddable.parent AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name), (SELECT SUM(TREAT(b.embeddable.parent AS " + strategy + "Sub2).sub2Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedParentEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        // The sub1Value and sub2Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 202L, null });
+        assertRemoved(bases, new Object[] { null, 204L });
+    }
+    
+    @Test
+    public void selectTreatedEmbeddableManyToOneEmbeddable() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(b.embeddable.parent AS " + strategy + "Sub1).embeddable1.sub1SomeValue FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedEmbeddableManyToOneEmbeddable-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void selectMultipleTreatedEmbeddableManyToOneEmbeddable() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT TREAT(b.embeddable.parent AS " + strategy + "Sub1).embeddable1.sub1SomeValue, TREAT(b.embeddable.parent AS " + strategy + "Sub2).embeddable2.sub2SomeValue FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedEmbeddableManyToOneEmbeddable-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void selectTreatedParentEmbeddableManyToOneEmbeddable() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT SUM(TREAT(b.embeddable.parent AS " + strategy + "Sub1).embeddable1.sub1SomeValue) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedParentEmbeddableManyToOneEmbeddable-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        // The sub1Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 202L);
+    }
+    
+    @Test
+    public void selectMultipleTreatedParentEmbeddableManyToOneEmbeddable() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, FAILS because query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT SUM(TREAT(b.embeddable.parent AS " + strategy + "Sub1).embeddable1.sub1SomeValue) FROM IntIdEntity i WHERE i.name = b.name), (SELECT SUM(TREAT(b.embeddable.parent AS " + strategy + "Sub2).embeddable2.sub2SomeValue) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedParentEmbeddableManyToOneEmbeddable-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        // The sub1Value and sub2Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 202L, null });
+        assertRemoved(bases, new Object[] { null, 204L });
+    }
+    
+    @Test
+    public void selectTreatedRootManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(TREAT(b AS " + strategy + "Sub1).parent1 AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedRootManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void selectMultipleTreatedRootManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT TREAT(TREAT(b AS " + strategy + "Sub1).parent1 AS " + strategy + "Sub1).sub1Value, TREAT(TREAT(b AS " + strategy + "Sub2).parent2 AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedRootManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void selectTreatedParentRootManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, successful BUT query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub1).parent1 AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedParentRootManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        // The sub1Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 202L);
+    }
+    
+    @Test
+    public void selectMultipleTreatedParentRootManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, successful BUT query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub1).parent1 AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name), (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub2).parent2 AS " + strategy + "Sub2).sub2Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedParentRootManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        // The sub1Value and sub2Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 202L, null });
+        assertRemoved(bases, new Object[] { null, 204L });
+    }
+    
+    @Test
+    public void selectTreatedRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedRootEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void selectMultipleTreatedRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1).sub1Value, TREAT(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedRootEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void selectTreatedParentRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, successful BUT query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedParentRootEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        // The sub1Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 202L);
+    }
+    
+    @Test
+    public void selectMultipleTreatedParentRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, successful BUT query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1).sub1Value) FROM IntIdEntity i WHERE i.name = b.name), (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent AS " + strategy + "Sub2).sub2Value) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedParentRootEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        // The sub1Value and sub2Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 202L, null });
+        assertRemoved(bases, new Object[] { null, 204L });
+    }
+    
+    @Test
+    public void selectTreatedRootEmbeddableManyToOneEmbeddable() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1).embeddable1.sub1SomeValue FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedRootEmbeddableManyToOneEmbeddable-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void selectMultipleTreatedRootEmbeddableManyToOneEmbeddable() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1).embeddable1.sub1SomeValue, TREAT(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent AS " + strategy + "Sub2).embeddable2.sub2SomeValue FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedRootEmbeddableManyToOneEmbeddable-" + strategy);
+        
+        // From => 4 instances
+        // Inner join on b.parent => 2 instance
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void selectTreatedParentRootEmbeddableManyToOneEmbeddable() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, successful BUT query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1).embeddable1.sub1SomeValue) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("selectTreatedParentRootEmbeddableManyToOneEmbeddable-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        // The sub1Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 202L);
+    }
+    
+    @Test
+    public void selectMultipleTreatedParentRootEmbeddableManyToOneEmbeddable() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because query is completely wrong
+        // - SingleTable   : issues 1 query, successful BUT query is completely wrong
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1).embeddable1.sub1SomeValue) FROM IntIdEntity i WHERE i.name = b.name), (SELECT SUM(TREAT(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent AS " + strategy + "Sub2).embeddable2.sub2SomeValue) FROM IntIdEntity i WHERE i.name = b.name) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("selectMultipleTreatedParentRootEmbeddableManyToOneEmbeddable-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        // The sub1Value and sub2Value is doubled
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 202L, null });
+        assertRemoved(bases, new Object[] { null, 204L });
+    }
+    
+    // JOIN
+    
+    @Test
+    public void treatJoinManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : issues 1 query, FAILS because inner joins on Sub1 for parent relation => should always use left join from bottom up
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : issues 1 query, all successful
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT s1.sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b.parent AS " + strategy + "Sub1) s1", Integer.class);
+        System.out.println("treatJoinManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Left join on b.parent => 4 instance
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void treatJoinMultipleManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : issues 1 query, FAILS because inner joins on Sub1 for parent relation => should always use left join from bottom up
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : issues 1 query, all successful
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT s1.sub1Value, s2.sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b.parent AS " + strategy + "Sub1) s1 LEFT JOIN TREAT(b.parent AS " + strategy + "Sub2) s2", Object[].class);
+        System.out.println("treatJoinMultipleManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Left join on b.parent1 => 4 instance
+        // Left join on b.parent2 => 4 instance
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void treatJoinParentManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b.parent AS " + strategy + "Sub1) s1) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("treatJoinParentManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void treatJoinMultipleParentManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b.parent AS " + strategy + "Sub1) s1), (SELECT s2.sub2Value FROM TREAT(b.parent AS " + strategy + "Sub2) s2) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("treatJoinMultipleParentManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void treatJoinEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : issues 1 query, FAILS because inner joins on Sub1 for parent relation => should always use left join from bottom up
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : issues 1 query, all successful
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT s1.sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b.embeddable.parent AS " + strategy + "Sub1) s1", Integer.class);
+        System.out.println("treatJoinEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Left join on b.parent => 4 instance
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void treatJoinMultipleEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : issues 1 query, FAILS because inner joins on Sub1 for parent relation => should always use left join from bottom up
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : issues 1 query, all successful
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT s1.sub1Value, s2.sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b.embeddable.parent AS " + strategy + "Sub1) s1 LEFT JOIN TREAT(b.embeddable.parent AS " + strategy + "Sub2) s2", Object[].class);
+        System.out.println("treatJoinMultipleEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Left join on b.parent1 => 4 instance
+        // Left join on b.parent2 => 4 instance
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    public void treatJoinParentEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b.embeddable.parent AS " + strategy + "Sub1) s1) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("treatJoinParentEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    public void treatJoinMultipleParentEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b.embeddable.parent AS " + strategy + "Sub1) s1), (SELECT s2.sub2Value FROM TREAT(b.embeddable.parent AS " + strategy + "Sub2) s2) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("treatJoinMultipleParentEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void joinTreatedRoot() {
+        // EclipseLink
+        // - Joined        : not working, join path parsing fails
+        // - SingleTable   : not working, join path parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1", Integer.class);
+        System.out.println("joinTreatedRoot-" + strategy);
+        
+        // From => 4 instances
+        // Left join on b.parent1 => 4 instance
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void joinMultipleTreatedRoot() {
+        // EclipseLink
+        // - Joined        : not working, join path parsing fails
+        // - SingleTable   : not working, join path parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value, TREAT(s2 AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1 LEFT JOIN TREAT(b AS " + strategy + "Sub2).parent2 s2", Object[].class);
+        System.out.println("joinMultipleTreatedRoot-" + strategy);
+        
+        // From => 4 instances
+        // Left join on b.parent1 => 4 instance
+        // Left join on b.parent2 => 4 instance
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void joinTreatedParentRootManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b AS " + strategy + "Sub1).parent1 s1) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("joinTreatedParentRootManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void joinMultipleTreatedParentRootManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b AS " + strategy + "Sub1).parent1 s1), (SELECT s2.sub2Value FROM TREAT(b AS " + strategy + "Sub2).parent2 s2) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("joinMultipleTreatedParentRootManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void joinTreatedRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, join path parsing fails
+        // - SingleTable   : not working, join path parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent s1", Integer.class);
+        System.out.println("joinTreatedRootEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Left join on b.parent1 => 4 instance
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void joinMultipleTreatedRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, join path parsing fails
+        // - SingleTable   : not working, join path parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value, TREAT(s2 AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent s1 LEFT JOIN TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent s2", Object[].class);
+        System.out.println("joinMultipleTreatedRootEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // Left join on b.parent1 => 4 instance
+        // Left join on b.parent2 => 4 instance
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void joinTreatedParentRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent s1) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("joinTreatedParentRootEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void joinMultipleTreatedParentRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent s1), (SELECT s2.sub2Value FROM TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent s2) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("joinMultipleTreatedParentRootEmbeddableManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
         assertRemoved(bases, new Object[] { 101,  null });
         assertRemoved(bases, new Object[] { null, 102  });
     }
@@ -489,10 +1674,64 @@ public class TreatVariationsTest {
     
     @Test
     // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
-    public void joinTreatedRoot() {
+    public void treatJoinTreatedParentRootManyToOne() {
         // EclipseLink
-        // - Joined        : not working, join path parsing fails
-        // - SingleTable   : not working, join path parsing fails
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Integer> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(TREAT(b AS " + strategy + "Sub1).parent1 AS " + strategy + "Sub1) s1) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("treatJoinTreatedParentRootManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents but only one is Sub1
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, null);
+        assertRemoved(bases, 101);
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void treatJoinMultipleTreatedParentRootManyToOne() {
+        // EclipseLink
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, subquery parsing fails
+        // - SingleTable   : not working, subquery parsing fails
+        // - TablePerClass : not working, subquery parsing fails
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<Object[]> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(TREAT(b AS " + strategy + "Sub1).parent1 AS " + strategy + "Sub1) s1), (SELECT s2.sub2Value FROM TREAT(TREAT(b AS " + strategy + "Sub2).parent2 AS " + strategy + "Sub2) s2) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("treatJoinMultipleTreatedParentRootManyToOne-" + strategy);
+        
+        // From => 4 instances
+        // There are two parents, one is Sub1 and the other Sub2
+        Assert.assertEquals(4, bases.size());
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { null, null });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
+    }
+    
+    @Test
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void treatJoinTreatedRootEmbeddableManyToOne() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
         // - TablePerClass : not working, strategy unsupported
         // Hibernate
         // - Joined        : not working, treated paths unsupported
@@ -502,8 +1741,8 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Integer> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1", Integer.class);
-        System.out.println("joinTreatedRoot-" + strategy);
+        List<Integer> bases = list("SELECT s1.sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1) AS s1", Integer.class);
+        System.out.println("treatJoinTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
         // Left join on b.parent1 => 4 instance
@@ -516,10 +1755,10 @@ public class TreatVariationsTest {
     
     @Test
     // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
-    public void joinMultipleTreatedRoot() {
+    public void treatJoinMultipleTreatedRootEmbeddableManyToOne() {
         // EclipseLink
-        // - Joined        : not working, join path parsing fails
-        // - SingleTable   : not working, join path parsing fails
+        // - Joined        : issues 1 query, FAILS because filters subtype
+        // - SingleTable   : issues 1 query, FAILS because filters subtype
         // - TablePerClass : not working, strategy unsupported
         // Hibernate
         // - Joined        : not working, treated paths unsupported
@@ -529,8 +1768,8 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Object[]> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value, TREAT(s2 AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1  LEFT JOIN TREAT(b AS " + strategy + "Sub2).parent2 s2", Object[].class);
-        System.out.println("joinMultipleTreatedRoot-" + strategy);
+        List<Object[]> bases = list("SELECT s1.sub1Value, s2.sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1) AS s1 LEFT JOIN TREAT(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent AS " + strategy + "Sub2) AS s2", Object[].class);
+        System.out.println("treatJoinMultipleTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
         // Left join on b.parent1 => 4 instance
@@ -543,60 +1782,8 @@ public class TreatVariationsTest {
     }
     
     @Test
-    public void selectTreatJoinedRelation() {
-        // EclipseLink
-        // - Joined        : issues 1 query, all successful
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
-        // - TablePerClass : not working, strategy unsupported
-        // Hibernate
-        // - Joined        : issues 1 query, FAILS because inner joins on Sub1 for parent relation => should always use left join from bottom up
-        // - SingleTable   : issues 1 query, all successful
-        // - TablePerClass : issues 1 query, all successful
-        // DataNucleus
-        // - Joined        : 
-        // - SingleTable   : 
-        // - TablePerClass : 
-        List<Integer> bases = list("SELECT s1.sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b.parent AS " + strategy + "Sub1) s1", Integer.class);
-        System.out.println("selectTreatJoinedRelation-" + strategy);
-        
-        // From => 4 instances
-        // Left join on b.parent => 4 instance
-        Assert.assertEquals(4, bases.size());
-        assertRemoved(bases, null);
-        assertRemoved(bases, null);
-        assertRemoved(bases, null);
-        assertRemoved(bases, 101);
-    }
-    
-    @Test
-    public void selectMultipleTreatJoinedRelation() {
-        // EclipseLink
-        // - Joined        : issues 1 query, all successful
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
-        // - TablePerClass : not working, strategy unsupported
-        // Hibernate
-        // - Joined        : issues 1 query, FAILS because inner joins on Sub1 for parent relation => should always use left join from bottom up
-        // - SingleTable   : issues 1 query, all successful
-        // - TablePerClass : issues 1 query, all successful
-        // DataNucleus
-        // - Joined        : 
-        // - SingleTable   : 
-        // - TablePerClass : 
-        List<Object[]> bases = list("SELECT s1.sub1Value, s2.sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b.parent AS " + strategy + "Sub1) s1 LEFT JOIN TREAT(b.parent AS " + strategy + "Sub2) s2", Object[].class);
-        System.out.println("selectMultipleTreatJoinedRelation-" + strategy);
-        
-        // From => 4 instances
-        // Left join on b.parent1 => 4 instance
-        // Left join on b.parent2 => 4 instance
-        Assert.assertEquals(4, bases.size());
-        assertRemoved(bases, new Object[] { null, null });
-        assertRemoved(bases, new Object[] { null, null });
-        assertRemoved(bases, new Object[] { 101,  null });
-        assertRemoved(bases, new Object[] { null, 102  });
-    }
-    
-    @Test
-    public void selectTreatJoinedParentRoot() {
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void treatJoinTreatedParentRootEmbeddableManyToOne() {
         // EclipseLink
         // - Joined        : not working, subquery parsing fails
         // - SingleTable   : not working, subquery parsing fails
@@ -609,8 +1796,8 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Integer> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b.parent AS " + strategy + "Sub1) s1) FROM " + strategy + "Base b", Integer.class);
-        System.out.println("selectTreatJoinedParentRoot-" + strategy);
+        List<Integer> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1) s1) FROM " + strategy + "Base b", Integer.class);
+        System.out.println("treatJoinTreatedParentRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
         // There are two parents but only one is Sub1
@@ -622,7 +1809,8 @@ public class TreatVariationsTest {
     }
     
     @Test
-    public void selectMultipleTreatJoinedParentRoot() {
+    // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
+    public void treatJoinMultipleTreatedParentRootEmbeddableManyToOne() {
         // EclipseLink
         // - Joined        : not working, subquery parsing fails
         // - SingleTable   : not working, subquery parsing fails
@@ -635,8 +1823,8 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Object[]> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(b.parent AS " + strategy + "Sub1) s1), (SELECT s2.sub2Value FROM TREAT(b.parent AS " + strategy + "Sub2) s2) FROM " + strategy + "Base b", Object[].class);
-        System.out.println("selectMultipleTreatedParentRoot-" + strategy);
+        List<Object[]> bases = list("SELECT (SELECT s1.sub1Value FROM TREAT(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent AS " + strategy + "Sub1) s1), (SELECT s2.sub2Value FROM TREAT(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent AS " + strategy + "Sub2) s2) FROM " + strategy + "Base b", Object[].class);
+        System.out.println("treatJoinMultipleTreatedParentRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
         // There are two parents, one is Sub1 and the other Sub2
@@ -647,114 +1835,11 @@ public class TreatVariationsTest {
         assertRemoved(bases, new Object[] { null, 102  });
     }
     
-    @Test
-    public void selectTreatJoinedEmbeddableRelation() {
-        // EclipseLink
-        // - Joined        : issues 1 query, all successful
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
-        // - TablePerClass : not working, strategy unsupported
-        // Hibernate
-        // - Joined        : issues 1 query, FAILS because inner joins on Sub1 for parent relation => should always use left join from bottom up
-        // - SingleTable   : issues 1 query, all successful
-        // - TablePerClass : issues 1 query, all successful
-        // DataNucleus
-        // - Joined        : 
-        // - SingleTable   : 
-        // - TablePerClass : 
-        List<Integer> bases = list("SELECT s1.sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b.embeddable.parent AS " + strategy + "Sub1) s1", Integer.class);
-        System.out.println("selectTreatJoinedEmbeddableRelation-" + strategy);
-        
-        // From => 4 instances
-        // Left join on b.parent => 4 instance
-        Assert.assertEquals(4, bases.size());
-        assertRemoved(bases, null);
-        assertRemoved(bases, null);
-        assertRemoved(bases, null);
-        assertRemoved(bases, 101);
-    }
-    
-    @Test
-    public void selectMultipleTreatJoinedEmbeddableRelation() {
-        // EclipseLink
-        // - Joined        : issues 1 query, all successful
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
-        // - TablePerClass : not working, strategy unsupported
-        // Hibernate
-        // - Joined        : issues 1 query, FAILS because inner joins on Sub1 for parent relation => should always use left join from bottom up
-        // - SingleTable   : issues 1 query, all successful
-        // - TablePerClass : issues 1 query, all successful
-        // DataNucleus
-        // - Joined        : 
-        // - SingleTable   : 
-        // - TablePerClass : 
-        List<Object[]> bases = list("SELECT s1.sub1Value, s2.sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b.embeddable.parent AS " + strategy + "Sub1) s1 LEFT JOIN TREAT(b.embeddable.parent AS " + strategy + "Sub2) s2", Object[].class);
-        System.out.println("selectMultipleTreatJoinedEmbeddableRelation-" + strategy);
-        
-        // From => 4 instances
-        // Left join on b.parent1 => 4 instance
-        // Left join on b.parent2 => 4 instance
-        Assert.assertEquals(4, bases.size());
-        assertRemoved(bases, new Object[] { null, null });
-        assertRemoved(bases, new Object[] { null, null });
-        assertRemoved(bases, new Object[] { 101,  null });
-        assertRemoved(bases, new Object[] { null, 102  });
-    }
-    
-    @Test
-    public void selectTreatedRelationEmbeddableValue() {
-        // EclipseLink
-        // - Joined        : issues 1 query, FAILS because filters subtype
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
-        // - TablePerClass : not working, strategy unsupported
-        // Hibernate
-        // - Joined        : not working, treat embeddable path parsing fails
-        // - SingleTable   : not working, treat embeddable path parsing fails
-        // - TablePerClass : not working, treat embeddable path parsing fails
-        // DataNucleus
-        // - Joined        : 
-        // - SingleTable   : 
-        // - TablePerClass : 
-        List<Integer> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).sub1Embeddable.someValue FROM " + strategy + "Base b", Integer.class);
-        System.out.println("selectTreatedRelationEmbeddableValue-" + strategy);
-        
-        // From => 4 instances
-        Assert.assertEquals(4, bases.size());
-        assertRemoved(bases, null);
-        assertRemoved(bases, null);
-        assertRemoved(bases, null);
-        assertRemoved(bases, 1001);
-    }
-    
-    @Test
-    public void selectMultipleTreatedRelationEmbeddableValue() {
-        // EclipseLink
-        // - Joined        : issues 1 query, FAILS because filters subtype
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
-        // - TablePerClass : not working, strategy unsupported
-        // Hibernate
-        // - Joined        : not working, treat embeddable path parsing fails
-        // - SingleTable   : not working, treat embeddable path parsing fails
-        // - TablePerClass : not working, treat embeddable path parsing fails
-        // DataNucleus
-        // - Joined        : 
-        // - SingleTable   : 
-        // - TablePerClass : 
-        List<Object[]> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).sub1Embeddable.someValue, TREAT(b AS " + strategy + "Sub2).sub2Embeddable.someValue FROM " + strategy + "Base b", Object[].class);
-        System.out.println("selectMultipleTreatedRelationEmbeddableValue-" + strategy);
-        
-        // From => 4 instances
-        Assert.assertEquals(4, bases.size());
-        assertRemoved(bases, new Object[] { null, null });
-        assertRemoved(bases, new Object[] { null, null });
-        assertRemoved(bases, new Object[] { 1001, null });
-        assertRemoved(bases, new Object[] { null, 1002 });
-    }
-    
     /************************************************************
      * TREAT ONE-TO-MANY LIST
      ************************************************************/
-    // TODO: Add testcases
     
+    // TODO: Add testcases
     /************************************************************
      * TREAT ONE-TO-MANY INVERSE SET
      ************************************************************/

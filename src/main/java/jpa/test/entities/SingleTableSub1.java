@@ -1,17 +1,35 @@
 package jpa.test.entities;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.persistence.AttributeOverride;
+import javax.persistence.Column;
+import javax.persistence.Embedded;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
+import javax.persistence.MapKeyColumn;
+import javax.persistence.OneToMany;
+import javax.persistence.OrderColumn;
 
 @Entity
-public class SingleTableSub1 extends SingleTableBase implements Sub1<SingleTableBase, SingleTableEmbeddable> {
+public class SingleTableSub1 extends SingleTableBase implements Sub1<SingleTableBase, SingleTableEmbeddable, SingleTableEmbeddableSub1> {
     private static final long serialVersionUID = 1L;
 
     private IntIdEntity relation1;
     private SingleTableBase parent1;
     private Integer sub1Value;
     private IntValueEmbeddable sub1Embeddable = new IntValueEmbeddable();
+    private SingleTableEmbeddableSub1 embeddable1 = new SingleTableEmbeddableSub1();
+    private List<SingleTableBase> list1 = new ArrayList<>();
+    private Set<SingleTableSub1> children1 = new HashSet<>();
+    private Map<String, SingleTableBase> map1 = new HashMap<>();
 
     public SingleTableSub1() {
     }
@@ -53,6 +71,8 @@ public class SingleTableSub1 extends SingleTableBase implements Sub1<SingleTable
     }
 
     @Override
+    @Embedded
+    @AttributeOverride(name = "someValue", column = @Column(name = "someValue1"))
     public IntValueEmbeddable getSub1Embeddable() {
         return sub1Embeddable;
     }
@@ -60,5 +80,53 @@ public class SingleTableSub1 extends SingleTableBase implements Sub1<SingleTable
     @Override
     public void setSub1Embeddable(IntValueEmbeddable sub1Embeddable) {
         this.sub1Embeddable = sub1Embeddable;
+    }
+
+    @Override
+    @Embedded
+    public SingleTableEmbeddableSub1 getEmbeddable1() {
+        return embeddable1;
+    }
+
+    @Override
+    public void setEmbeddable1(SingleTableEmbeddableSub1 embeddable1) {
+        this.embeddable1 = embeddable1;
+    }
+
+    @Override
+    @ManyToMany
+    @OrderColumn(name = "list_idx", nullable = false)
+    @JoinTable(name = "single_table_list_1")
+    public List<SingleTableBase> getList1() {
+        return list1;
+    }
+
+    @Override
+    public void setList1(List<? extends SingleTableBase> list1) {
+        this.list1 = (List<SingleTableBase>) list1;
+    }
+
+    @Override
+    @OneToMany(mappedBy = "parent1")
+    public Set<SingleTableSub1> getChildren1() {
+        return children1;
+    }
+
+    @Override
+    public void setChildren1(Set<? extends SingleTableBase> children1) {
+        this.children1 = (Set<SingleTableSub1>) children1;
+    }
+
+    @Override
+    @ManyToMany
+    @JoinTable(name = "single_table_map_1")
+    @MapKeyColumn(name = "stm1_map_key", nullable = false, length = 20)
+    public Map<String, SingleTableBase> getMap1() {
+        return map1;
+    }
+
+    @Override
+    public void setMap1(Map<String, ? extends SingleTableBase> map1) {
+        this.map1 = (Map<String, SingleTableBase>) map1;
     }
 }

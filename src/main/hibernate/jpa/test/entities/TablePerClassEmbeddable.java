@@ -1,0 +1,90 @@
+package jpa.test.entities;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.persistence.ConstraintMode;
+import javax.persistence.Embeddable;
+import javax.persistence.FetchType;
+import javax.persistence.ForeignKey;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.MapKeyColumn;
+import javax.persistence.OneToMany;
+import javax.persistence.OrderColumn;
+
+@Embeddable
+public class TablePerClassEmbeddable implements BaseEmbeddable<TablePerClassBase>, Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private TablePerClassBase parent;
+    private Set<TablePerClassBase> children = new HashSet<>();
+    private List<TablePerClassBase> list = new ArrayList<>();
+    private Map<String, TablePerClassBase> map = new HashMap<>();
+
+    public TablePerClassEmbeddable() {
+    }
+
+    public TablePerClassEmbeddable(TablePerClassBase parent) {
+        this.parent = parent;
+    }
+
+    @Override
+    @ManyToOne(fetch = FetchType.LAZY)
+    // We can't have a constraint in this case because we don't know the exact table this will refer to
+    @JoinColumn(name = "embeddableParent", foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    public TablePerClassBase getParent() {
+        return parent;
+    }
+
+    @Override
+    public void setParent(TablePerClassBase parent) {
+        this.parent = parent;
+    }
+
+    @Override
+    @OneToMany
+    @JoinColumn(name = "embeddableParent")
+    public Set<TablePerClassBase> getChildren() {
+        return children;
+    }
+
+    @Override
+    public void setChildren(Set<? extends TablePerClassBase> children) {
+        this.children = (Set<TablePerClassBase>) children;
+    }
+
+    @Override
+    @ManyToMany
+    @OrderColumn(name = "list_idx", nullable = false)
+    // We can't have a constraint in this case because we don't know the exact table this will refer to
+    @JoinTable(name = "table_per_class_embeddable_list", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    public List<TablePerClassBase> getList() {
+        return list;
+    }
+
+    @Override
+    public void setList(List<? extends TablePerClassBase> list) {
+        this.list = (List<TablePerClassBase>) list;
+    }
+    
+    @Override
+    @ManyToMany
+    // We can't have a constraint in this case because we don't know the exact table this will refer to
+    @JoinTable(name = "table_per_class_embeddable_map", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @MapKeyColumn(name = "tpcem_map_key", nullable = false, length = 20)
+    public Map<String, TablePerClassBase> getMap() {
+        return map;
+    }
+
+    @Override
+    public void setMap(Map<String, ? extends TablePerClassBase> map) {
+        this.map = (Map<String, TablePerClassBase>) map;
+    }
+}

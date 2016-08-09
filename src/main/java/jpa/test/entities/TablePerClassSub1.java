@@ -2,21 +2,39 @@ package jpa.test.entities;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import javax.persistence.AssociationOverride;
+import javax.persistence.AssociationOverrides;
 import javax.persistence.ConstraintMode;
+import javax.persistence.Embedded;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.ForeignKey;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.MapKeyColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.OrderColumn;
+import javax.persistence.Table;
 
 @Entity
-public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePerClassBase, TablePerClassEmbeddable> {
+@Table(name = "table_per_class_sub_1")
+@AssociationOverrides({
+    @AssociationOverride(
+            name = "embeddable.list",
+            joinTable = @JoinTable(name = "table_per_class_embeddable_sub_1_list", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    ),
+    @AssociationOverride(
+            name = "embeddable.map",
+            joinTable = @JoinTable(name = "table_per_class_embeddable_sub_1_map", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    )
+})
+public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePerClassBase, TablePerClassEmbeddable, TablePerClassEmbeddableSub1> {
     private static final long serialVersionUID = 1L;
 
     private IntIdEntity relation1;
@@ -25,6 +43,10 @@ public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePe
     private IntValueEmbeddable sub1Embeddable = new IntValueEmbeddable();
     private List<TablePerClassBase> list = new ArrayList<>();
     private Map<String, TablePerClassBase> map = new HashMap<>();
+    private TablePerClassEmbeddableSub1 embeddable1 = new TablePerClassEmbeddableSub1();
+    private List<TablePerClassBase> list1 = new ArrayList<>();
+    private Set<TablePerClassBase> children1 = new HashSet<>();
+    private Map<String, TablePerClassBase> map1 = new HashMap<>();
 
     public TablePerClassSub1() {
     }
@@ -68,6 +90,7 @@ public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePe
     }
 
     @Override
+    @Embedded
     public IntValueEmbeddable getSub1Embeddable() {
         return sub1Embeddable;
     }
@@ -78,7 +101,18 @@ public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePe
     }
 
     @Override
-    @OneToMany
+    @Embedded
+    public TablePerClassEmbeddableSub1 getEmbeddable1() {
+        return embeddable1;
+    }
+
+    @Override
+    public void setEmbeddable1(TablePerClassEmbeddableSub1 embeddable1) {
+        this.embeddable1 = embeddable1;
+    }
+
+    @Override
+    @ManyToMany
     @OrderColumn(name = "list_idx", nullable = false)
     // We can't have a constraint in this case because we don't know the exact table this will refer to
     @JoinTable(name = "table_per_class_sub_1_list", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
@@ -92,10 +126,10 @@ public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePe
     }
     
     @Override
-    @OneToMany
+    @ManyToMany
     // We can't have a constraint in this case because we don't know the exact table this will refer to
     @JoinTable(name = "table_per_class_sub_1_map", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
-    @MapKeyColumn(table = "table_per_class_sub_1_map", nullable = false, length = 20)
+    @MapKeyColumn(name = "tpcs1m_map_key", nullable = false, length = 20)
     public Map<String, TablePerClassBase> getMap() {
         return map;
     }
@@ -103,5 +137,44 @@ public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePe
     @Override
     public void setMap(Map<String, ? extends TablePerClassBase> map) {
         this.map = (Map<String, TablePerClassBase>) map;
+    }
+
+    @Override
+    @ManyToMany
+    @OrderColumn(name = "list_idx", nullable = false)
+    // We can't have a constraint in this case because we don't know the exact table this will refer to
+    @JoinTable(name = "table_per_class_sub_1_list_1", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    public List<TablePerClassBase> getList1() {
+        return list1;
+    }
+
+    @Override
+    public void setList1(List<? extends TablePerClassBase> list1) {
+        this.list1 = (List<TablePerClassBase>) list1;
+    }
+
+    @Override
+    @OneToMany(mappedBy = "parent1", targetEntity = TablePerClassSub1.class)
+    public Set<TablePerClassBase> getChildren1() {
+        return children1;
+    }
+
+    @Override
+    public void setChildren1(Set<? extends TablePerClassBase> children1) {
+        this.children1 = (Set<TablePerClassBase>) children1;
+    }
+    
+    @Override
+    @ManyToMany
+    // We can't have a constraint in this case because we don't know the exact table this will refer to
+    @JoinTable(name = "table_per_class_sub_1_map_1", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @MapKeyColumn(name = "tpcs1m1_map_key", nullable = false, length = 20)
+    public Map<String, TablePerClassBase> getMap1() {
+        return map1;
+    }
+
+    @Override
+    public void setMap1(Map<String, ? extends TablePerClassBase> map1) {
+        this.map1 = (Map<String, TablePerClassBase>) map1;
     }
 }

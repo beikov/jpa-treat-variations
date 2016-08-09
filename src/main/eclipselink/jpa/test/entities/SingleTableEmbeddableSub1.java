@@ -1,0 +1,98 @@
+package jpa.test.entities;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.persistence.Embeddable;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.OrderColumn;
+import javax.persistence.Transient;
+
+@Embeddable
+public class SingleTableEmbeddableSub1 implements Sub1Embeddable<SingleTableBase>, Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Integer sub1SomeValue;
+    private SingleTableBase sub1Parent;
+    private List<SingleTableBase> sub1List = new ArrayList<>();
+    private Set<SingleTableSub1> sub1Children = new HashSet<>();
+    private Map<String, SingleTableBase> sub1Map = new HashMap<>();
+
+    public SingleTableEmbeddableSub1() {
+    }
+
+    public SingleTableEmbeddableSub1(SingleTableBase sub1Parent) {
+        this.sub1Parent = sub1Parent;
+    }
+
+    @Override
+    public Integer getSub1SomeValue() {
+        return sub1SomeValue;
+    }
+
+    @Override
+    public void setSub1SomeValue(Integer sub1SomeValue) {
+        this.sub1SomeValue = sub1SomeValue;
+    }
+
+    @Override
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "embeddableSub1Parent")
+    public SingleTableBase getSub1Parent() {
+        return sub1Parent;
+    }
+
+    @Override
+    public void setSub1Parent(SingleTableBase sub1Parent) {
+        this.sub1Parent = sub1Parent;
+    }
+
+    @Override
+    @ManyToMany
+    @OrderColumn(name = "list_idx", nullable = false)
+    @JoinTable(name = "single_table_embeddable_1_list")
+    public List<SingleTableBase> getSub1List() {
+        return sub1List;
+    }
+
+    @Override
+    public void setSub1List(List<? extends SingleTableBase> sub1List) {
+        this.sub1List = (List<SingleTableBase>) sub1List;
+    }
+
+    @Override
+    @OneToMany
+    @JoinColumn(name = "embeddableSub1Parent")
+    public Set<SingleTableSub1> getSub1Children() {
+        return sub1Children;
+    }
+
+    @Override
+    public void setSub1Children(Set<? extends SingleTableBase> sub1Children) {
+        this.sub1Children = (Set<SingleTableSub1>) sub1Children;
+    }
+
+    // Apparently EclipseLink does not support mapping a map in an embeddable
+    @Override
+    @Transient
+//    @ManyToMany
+//    @JoinTable(name = "single_table_embeddable_1_map")
+//    @MapKeyColumn(name = "stes1m_map_key", nullable = false, length = 20)
+    public Map<String, SingleTableBase> getSub1Map() {
+        return sub1Map;
+    }
+
+    @Override
+    public void setSub1Map(Map<String, ? extends SingleTableBase> sub1Map) {
+        this.sub1Map = (Map<String, SingleTableBase>) sub1Map;
+    }
+}

@@ -1,54 +1,41 @@
 package jpa.test.entities;
 
 import java.io.Serializable;
-import java.util.*;
-import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.persistence.Embeddable;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.OrderColumn;
+import javax.persistence.Transient;
 
-@Entity
-@Table(name = "single_table_base")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-public abstract class SingleTableBase implements Serializable, Base<SingleTableBase, SingleTableEmbeddable> {
+@Embeddable
+public class SingleTableEmbeddable implements BaseEmbeddable<SingleTableBase>, Serializable {
     private static final long serialVersionUID = 1L;
 
-    private Long id;
-    private String name;
     private SingleTableBase parent;
-    private SingleTableEmbeddable embeddable = new SingleTableEmbeddable();
     private List<SingleTableBase> list = new ArrayList<>();
     private Set<SingleTableBase> children = new HashSet<>();
     private Map<String, SingleTableBase> map = new HashMap<>();
 
-    public SingleTableBase() {
+    public SingleTableEmbeddable() {
     }
 
-    public SingleTableBase(String name) {
-        this.name = name;
-    }
-
-    @Id
-    @Override
-    @GeneratedValue
-    public Long getId() {
-        return id;
+    public SingleTableEmbeddable(SingleTableBase parent) {
+        this.parent = parent;
     }
 
     @Override
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    @Override
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    @Override
-    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "embeddableParent")
     public SingleTableBase getParent() {
         return parent;
     }
@@ -59,20 +46,9 @@ public abstract class SingleTableBase implements Serializable, Base<SingleTableB
     }
 
     @Override
-    @Embedded
-    public SingleTableEmbeddable getEmbeddable() {
-        return embeddable;
-    }
-
-    @Override
-    public void setEmbeddable(SingleTableEmbeddable embeddable) {
-        this.embeddable = embeddable;
-    }
-
-    @Override
     @ManyToMany
     @OrderColumn(name = "list_idx", nullable = false)
-    @JoinTable(name = "single_table_list")
+    @JoinTable(name = "single_table_embeddable_list")
     public List<SingleTableBase> getList() {
         return list;
     }
@@ -83,7 +59,8 @@ public abstract class SingleTableBase implements Serializable, Base<SingleTableB
     }
 
     @Override
-    @OneToMany(mappedBy = "parent")
+    @OneToMany
+    @JoinColumn(name = "embeddableParent")
     public Set<SingleTableBase> getChildren() {
         return children;
     }
@@ -93,10 +70,9 @@ public abstract class SingleTableBase implements Serializable, Base<SingleTableB
         this.children = (Set<SingleTableBase>) children;
     }
 
+    // Apparently EclipseLink does not support mapping a map in an embeddable
     @Override
-    @ManyToMany
-    @JoinTable(name = "single_table_map")
-    @MapKeyColumn(name = "stm_map_key", nullable = false, length = 20)
+    @Transient
     public Map<String, SingleTableBase> getMap() {
         return map;
     }

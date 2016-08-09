@@ -1,17 +1,35 @@
 package jpa.test.entities;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.persistence.Embedded;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
+import javax.persistence.MapKeyColumn;
+import javax.persistence.OneToMany;
+import javax.persistence.OrderColumn;
+import javax.persistence.Table;
 
 @Entity
-public class JoinedSub1 extends JoinedBase implements Sub1<JoinedBase, JoinedEmbeddable> {
+@Table(name = "joined_sub_1")
+public class JoinedSub1 extends JoinedBase implements Sub1<JoinedBase, JoinedEmbeddable, JoinedEmbeddableSub1> {
     private static final long serialVersionUID = 1L;
 
     private IntIdEntity relation1;
     private JoinedBase parent1;
     private Integer sub1Value;
     private IntValueEmbeddable sub1Embeddable = new IntValueEmbeddable();
+    private JoinedEmbeddableSub1 embeddable1 = new JoinedEmbeddableSub1();
+    private List<JoinedBase> list1 = new ArrayList<>();
+    private Set<JoinedSub1> children1 = new HashSet<>();
+    private Map<String, JoinedBase> map1 = new HashMap<>();
 
     public JoinedSub1() {
     }
@@ -53,6 +71,7 @@ public class JoinedSub1 extends JoinedBase implements Sub1<JoinedBase, JoinedEmb
     }
 
     @Override
+    @Embedded
     public IntValueEmbeddable getSub1Embeddable() {
         return sub1Embeddable;
     }
@@ -61,4 +80,53 @@ public class JoinedSub1 extends JoinedBase implements Sub1<JoinedBase, JoinedEmb
     public void setSub1Embeddable(IntValueEmbeddable sub1Embeddable) {
         this.sub1Embeddable = sub1Embeddable;
     }
+
+    @Override
+    @Embedded
+    public JoinedEmbeddableSub1 getEmbeddable1() {
+        return embeddable1;
+    }
+
+    @Override
+    public void setEmbeddable1(JoinedEmbeddableSub1 embeddable1) {
+        this.embeddable1 = embeddable1;
+    }
+
+    @Override
+    @ManyToMany
+    @OrderColumn(name = "list_idx", nullable = false)
+    @JoinTable(name = "joined_list_1")
+    public List<JoinedBase> getList1() {
+        return list1;
+    }
+
+    @Override
+    public void setList1(List<? extends JoinedBase> list1) {
+        this.list1 = (List<JoinedBase>) list1;
+    }
+
+    @Override
+    @OneToMany(mappedBy = "parent1")
+    public Set<JoinedSub1> getChildren1() {
+        return children1;
+    }
+
+    @Override
+    public void setChildren1(Set<? extends JoinedBase> children1) {
+        this.children1 = (Set<JoinedSub1>) children1;
+    }
+
+    @Override
+    @ManyToMany
+    @JoinTable(name = "joined_map_1")
+    @MapKeyColumn(name = "jm1_map_key", nullable = false, length = 20)
+    public Map<String, JoinedBase> getMap1() {
+        return map1;
+    }
+
+    @Override
+    public void setMap1(Map<String, ? extends JoinedBase> map1) {
+        this.map1 = (Map<String, JoinedBase>) map1;
+    }
+    
 }

@@ -1,0 +1,96 @@
+package jpa.test.entities;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.persistence.Embeddable;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.MapKeyColumn;
+import javax.persistence.OneToMany;
+import javax.persistence.OrderColumn;
+
+@Embeddable
+public class SingleTableEmbeddableSub2 implements Sub2Embeddable<SingleTableBase>, Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Integer sub2SomeValue;
+    private SingleTableBase sub2Parent;
+    private List<SingleTableBase> sub2List = new ArrayList<>();
+    private Set<SingleTableSub2> sub2Children = new HashSet<>();
+    private Map<String, SingleTableBase> sub2Map = new HashMap<>();
+
+    public SingleTableEmbeddableSub2() {
+    }
+
+    public SingleTableEmbeddableSub2(SingleTableBase sub2Parent) {
+        this.sub2Parent = sub2Parent;
+    }
+
+    @Override
+    public Integer getSub2SomeValue() {
+        return sub2SomeValue;
+    }
+
+    @Override
+    public void setSub2SomeValue(Integer sub2SomeValue) {
+        this.sub2SomeValue = sub2SomeValue;
+    }
+
+    @Override
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "embeddableSub2Parent")
+    public SingleTableBase getSub2Parent() {
+        return sub2Parent;
+    }
+
+    @Override
+    public void setSub2Parent(SingleTableBase sub2Parent) {
+        this.sub2Parent = sub2Parent;
+    }
+
+    @Override
+    @ManyToMany
+    @OrderColumn(name = "list_idx", nullable = false)
+    @JoinTable(name = "single_table_embeddable_2_list")
+    public List<SingleTableBase> getSub2List() {
+        return sub2List;
+    }
+
+    @Override
+    public void setSub2List(List<? extends SingleTableBase> sub2List) {
+        this.sub2List = (List<SingleTableBase>) sub2List;
+    }
+
+    @Override
+    @OneToMany
+    @JoinColumn(name = "embeddableSub2Parent")
+    public Set<SingleTableSub2> getSub2Children() {
+        return sub2Children;
+    }
+
+    @Override
+    public void setSub2Children(Set<? extends SingleTableBase> sub2Children) {
+        this.sub2Children = (Set<SingleTableSub2>) sub2Children;
+    }
+
+    @Override
+    @ManyToMany
+    @JoinTable(name = "single_table_embeddable_2_map")
+    @MapKeyColumn(name = "stes2m_map_key", nullable = false, length = 20)
+    public Map<String, SingleTableBase> getSub2Map() {
+        return sub2Map;
+    }
+
+    @Override
+    public void setSub2Map(Map<String, ? extends SingleTableBase> sub2Map) {
+        this.sub2Map = (Map<String, SingleTableBase>) sub2Map;
+    }
+}
