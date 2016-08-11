@@ -12,6 +12,7 @@ public abstract class TablePerClassBase implements Serializable, Base<TablePerCl
 
     private Long id;
     private String name;
+    private Integer value;
     private TablePerClassBase parent;
     private TablePerClassEmbeddable embeddable = new TablePerClassEmbeddable();
     private Set<TablePerClassBase> children = new HashSet<>();
@@ -43,6 +44,16 @@ public abstract class TablePerClassBase implements Serializable, Base<TablePerCl
     @Override
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public Integer getValue() {
+        return value;
+    }
+
+    @Override
+    public void setValue(Integer value) {
+        this.value = value;
     }
 
     @Override

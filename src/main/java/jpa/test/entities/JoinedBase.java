@@ -12,6 +12,7 @@ public abstract class JoinedBase implements Serializable, Base<JoinedBase, Joine
 
     private Long id;
     private String name;
+    private Integer value;
     private JoinedBase parent;
     private JoinedEmbeddable embeddable = new JoinedEmbeddable();
     private List<JoinedBase> list = new ArrayList<>();
@@ -45,6 +46,16 @@ public abstract class JoinedBase implements Serializable, Base<JoinedBase, Joine
     @Override
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public Integer getValue() {
+        return value;
+    }
+
+    @Override
+    public void setValue(Integer value) {
+        this.value = value;
     }
 
     @Override

@@ -15,6 +15,10 @@ public interface Base<T extends Base, B extends BaseEmbeddable<T>> {
 
     public void setName(String name);
 
+    public Integer getValue();
+
+    public void setValue(Integer value);
+
     public T getParent();
 
     public void setParent(T parent);

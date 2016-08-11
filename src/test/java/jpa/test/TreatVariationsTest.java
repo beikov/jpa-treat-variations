@@ -94,17 +94,19 @@ public class TreatVariationsTest {
     private EntityManagerFactory emf;
     
     private final String strategy;
+    private final String objectPrefix;
     
-    public TreatVariationsTest(String strategy) {
+    public TreatVariationsTest(String strategy, String objectPrefix) {
         this.strategy = strategy;
+        this.objectPrefix = objectPrefix;
     }
     
     @Parameterized.Parameters
     public static Object[] getParameters() {
         return new Object[] {
-            "Joined", 
-            "SingleTable", 
-            "TablePerClass"
+            new Object[] { "Joined", "s" }, 
+            new Object[] { "SingleTable", "st" }, 
+            new Object[] { "TablePerClass", "tpc" }
         };
     }
     
@@ -183,9 +185,11 @@ public class TreatVariationsTest {
         em.persist(s1);
         em.persist(s2);
         
+        s1Parent.setValue(101);
         s1Parent.setSub1Value(101);
-        s1Parent.getSub1Embeddable().setSomeValue(1001);
+        s1Parent.getSub1Embeddable().setSomeValue(101);
         s1Parent.getEmbeddable1().setSub1SomeValue(101);
+        s1.setValue(1);
         s1.setSub1Value(1);
         s1.getEmbeddable1().setSub1SomeValue(1);
         s1.setRelation1(i1);
@@ -210,9 +214,11 @@ public class TreatVariationsTest {
         ((Map<String, Base<?, ?>>) s1Parent.getEmbeddable().getMap()).put(s2.getName(), s2);
         ((Map<String, Base<?, ?>>) s1Parent.getEmbeddable1().getSub1Map()).put(s2.getName(), s2);
         
+        s2Parent.setValue(102);
         s2Parent.setSub2Value(102);
-        s2Parent.getSub2Embeddable().setSomeValue(1002);
+        s2Parent.getSub2Embeddable().setSomeValue(102);
         s2Parent.getEmbeddable2().setSub2SomeValue(102);
+        s2.setValue(102);
         s2.setSub2Value(2);
         s2.getEmbeddable2().setSub2SomeValue(2);
         s2.setRelation2(i1);
@@ -386,7 +392,7 @@ public class TreatVariationsTest {
         assertRemoved(bases, null);
         assertRemoved(bases, null);
         assertRemoved(bases, null);
-        assertRemoved(bases, 1001);
+        assertRemoved(bases, 101);
     }
     
     @Test
@@ -410,8 +416,8 @@ public class TreatVariationsTest {
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, new Object[] { null, null });
         assertRemoved(bases, new Object[] { null, null });
-        assertRemoved(bases, new Object[] { 1001, null });
-        assertRemoved(bases, new Object[] { null, 1002 });
+        assertRemoved(bases, new Object[] { 101,  null });
+        assertRemoved(bases, new Object[] { null, 102  });
     }
     
     @Test
@@ -485,15 +491,15 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Integer> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).sub1Value, 0) < 100", Integer.class);
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).sub1Value, 0) < 100", String.class);
         System.out.println("whereTreatedRootBasic-" + strategy);
         
         // From => 4 instances
         // Where => 3 instances because 1 Sub1 has sub1Value 101, the other has 1 and Sub2s use 0 because of coalesce
         Assert.assertEquals(3, bases.size());
-        assertRemoved(bases, null);
-        assertRemoved(bases, null);
-        assertRemoved(bases, 1);
+        assertRemoved(bases, objectPrefix + "1.parent");
+        assertRemoved(bases, objectPrefix + "2.parent");
+        assertRemoved(bases, objectPrefix + "1");
     }
     
     @Test
@@ -510,15 +516,15 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Integer> bases = list("SELECT COALESCE(TREAT(b AS " + strategy + "Sub1).sub1Value, TREAT(b AS " + strategy + "Sub2).sub2Value) FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).sub1Value, 0) < 100 AND COALESCE(TREAT(b AS " + strategy + "Sub2).sub2Value, 0) < 100", Integer.class);
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).sub1Value, 0) < 100 AND COALESCE(TREAT(b AS " + strategy + "Sub2).sub2Value, 0) < 100", String.class);
         System.out.println("whereMultipleTreatedRootBasic-" + strategy);
         
         // From => 4 instances
         // Where => 2 instances because 1 Sub1 has sub1Value 101, the other has 1 and Sub2s use 0 because of coalesce
         // and 1 Sub2 has sub2Value 102, the other has 2 and Sub1 uses 0 because of coalesce
         Assert.assertEquals(2, bases.size());
-        assertRemoved(bases, 1);
-        assertRemoved(bases, 2);
+        assertRemoved(bases, objectPrefix + "1");
+        assertRemoved(bases, objectPrefix + "2");
     }
     
     @Test
@@ -535,15 +541,15 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Integer> bases = list("SELECT TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue, 0) < 100", Integer.class);
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue, 0) < 100", String.class);
         System.out.println("whereTreatedRootEmbeddableBasic-" + strategy);
         
         // From => 4 instances
         // Where => 3 instances because 1 Sub1 has sub1Value 101, the other has 1 and Sub2s use 0 because of coalesce
         Assert.assertEquals(3, bases.size());
-        assertRemoved(bases, null);
-        assertRemoved(bases, null);
-        assertRemoved(bases, 1);
+        assertRemoved(bases, objectPrefix + "1.parent");
+        assertRemoved(bases, objectPrefix + "2.parent");
+        assertRemoved(bases, objectPrefix + "1");
     }
     
     @Test
@@ -560,15 +566,15 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Integer> bases = list("SELECT COALESCE(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue, TREAT(b AS " + strategy + "Sub2).embeddable2.sub2SomeValue) FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue, 0) < 100 AND COALESCE(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2SomeValue, 0) < 100", Integer.class);
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE COALESCE(TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue, 0) < 100 AND COALESCE(TREAT(b AS " + strategy + "Sub2).embeddable2.sub2SomeValue, 0) < 100", String.class);
         System.out.println("whereMultipleTreatedRootEmbeddableBasic-" + strategy);
         
         // From => 4 instances
         // Where => 2 instances because 1 Sub1 has sub1SomeValue 101, the other has 1 and Sub2s use 0 because of coalesce
         // and 1 Sub2 has sub2SomeValue 102, the other has 2 and Sub1 uses 0 because of coalesce
         Assert.assertEquals(2, bases.size());
-        assertRemoved(bases, 1);
-        assertRemoved(bases, 2);
+        assertRemoved(bases, objectPrefix + "1");
+        assertRemoved(bases, objectPrefix + "2");
     }
     
     /************************************************************
@@ -1414,7 +1420,7 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Integer> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1", Integer.class);
+        List<Integer> bases = list("SELECT s1.value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1", Integer.class);
         System.out.println("joinTreatedRoot-" + strategy);
         
         // From => 4 instances
@@ -1441,7 +1447,7 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Object[]> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value, TREAT(s2 AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1 LEFT JOIN TREAT(b AS " + strategy + "Sub2).parent2 s2", Object[].class);
+        List<Object[]> bases = list("SELECT s1.value, s2.value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1 LEFT JOIN TREAT(b AS " + strategy + "Sub2).parent2 s2", Object[].class);
         System.out.println("joinMultipleTreatedRoot-" + strategy);
         
         // From => 4 instances
@@ -1523,7 +1529,7 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Integer> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent s1", Integer.class);
+        List<Integer> bases = list("SELECT s1.value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent s1", Integer.class);
         System.out.println("joinTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
@@ -1550,7 +1556,7 @@ public class TreatVariationsTest {
         // - Joined        : 
         // - SingleTable   : 
         // - TablePerClass : 
-        List<Object[]> bases = list("SELECT TREAT(s1 AS " + strategy + "Sub1).sub1Value, TREAT(s2 AS " + strategy + "Sub2).sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent s1 LEFT JOIN TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent s2", Object[].class);
+        List<Object[]> bases = list("SELECT s1.value, s2.value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).embeddable1.sub1Parent s1 LEFT JOIN TREAT(b AS " + strategy + "Sub2).embeddable2.sub2Parent s2", Object[].class);
         System.out.println("joinMultipleTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances

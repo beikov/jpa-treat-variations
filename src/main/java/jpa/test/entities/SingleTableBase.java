@@ -12,6 +12,7 @@ public abstract class SingleTableBase implements Serializable, Base<SingleTableB
 
     private Long id;
     private String name;
+    private Integer value;
     private SingleTableBase parent;
     private SingleTableEmbeddable embeddable = new SingleTableEmbeddable();
     private List<SingleTableBase> list = new ArrayList<>();
@@ -45,6 +46,16 @@ public abstract class SingleTableBase implements Serializable, Base<SingleTableB
     @Override
     public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public Integer getValue() {
+        return value;
+    }
+
+    @Override
+    public void setValue(Integer value) {
+        this.value = value;
     }
 
     @Override
