@@ -19,9 +19,9 @@ Treat expressions can be used in different forms in different clauses
 
  - In SELECT/WHERE/ORDER BY all types of treat expressions must be followed by a subpath e.g. `TREAT(rootAlias AS Subtype).subpath`
  - In FROM a treat expression must be one of the following
-   - Subpath treat e.g. `TREAT(rootAlias.subpath AS Subtype)`
-   - Subpath treat with root path treat e.g. `TREAT(TREAT(rootAlias AS Subtype).subpath AS Subtype)`
-   - Root path treat followed by subpath e.g. `TREAT(rootAlias AS Subtype).subpath`
+   * Subpath treat e.g. `TREAT(rootAlias.subpath AS Subtype)`
+   * Subpath treat with root path treat e.g. `TREAT(TREAT(rootAlias AS Subtype).subpath AS Subtype)`
+   * Root path treat followed by subpath e.g. `TREAT(rootAlias AS Subtype).subpath`
 
 == Assumptions
 
@@ -82,6 +82,8 @@ only the type restrictions do.
 
 == Attention
 
+=== Multiple distinct subtype relation joins
+
 Having multiple implicit inner joins on different subtype like `TREAT(alias AS Subtype).association` will always result in an empty result set!
 This is NOT because treat should result in something like `TYPE(alias) = Subtype1 AND TYPE(alias) = Subtype2`, but because the inner join condition can't be satisfied.
 
@@ -94,6 +96,11 @@ can be simplified to
 `SELECT alias1, alias2 FROM Supertype alias JOIN TREAT(alias AS Subtype1).subtype1Relation alias1 JOIN TREAT(alias AS Subtype2).subtype2Relation alias2`
 
 Now it is clear that this can't produce any results because `alias` can't be both `Subtype1` and `Subtype2` at the same time, so one of the two inner joins will filter out the values.
+
+=== Single table column sharing
+
+Special care has to be taken when having multiple distinct subtypes that share common columns in a single table inheritance.
+Since in that case a column could have a non-NULL value, an expression like `TREAT(alias AS Subtype).subpath` must be semantically treated like `CASE WHEN TYPE(alias) = Subtype THEN TREAT(alias AS Subtype).subpath END`.
 
 == Findings so far
 
