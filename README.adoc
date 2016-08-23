@@ -1,8 +1,8 @@
 Treat variations
 ================
-:pass: image:pass.svg[]
-:fail: image:fail.svg[]
-:warn: image:warn.svg[]
+:pass:      image:https://rawgit.com/beikov/jpa-treat-variations/master/pass.svg[]
+:fail:      image:https://rawgit.com/beikov/jpa-treat-variations/master/fail.svg[]
+:warn:      image:https://rawgit.com/beikov/jpa-treat-variations/master/warn.svg[]
 
 
 This is a collection of test cases for the treat operator.
