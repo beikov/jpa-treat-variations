@@ -1,0 +1,613 @@
+Treat variations
+================
+:pass: image::pass.svg[PASS]
+:fail: image::fail.svg[FAIL]
+:warn: image::warn.svg[WARN]
+
+
+This is a collection of test cases for the treat operator.
+
+It assumes some very specific behavior of the treat operator which might even differ from the JPA spec or intuition at first.
+In addition to that, the following also tests for edge cases the JPA spec seemed to have forgotten to include.
+
+There are 2 types of treat expressions
+
+ - Root path treats e.g. `TREAT(rootAlias AS Subtype)`
+ - Subpath treats e.g. `TREAT(rootAlias.subpath AS Subtype)`
+
+Treat expressions can be used in different forms in different clauses
+
+ - In SELECT/WHERE/ORDER BY all types of treat expressions must be followed by a subpath e.g. `TREAT(rootAlias AS Subtype).subpath`
+ - In FROM a treat expression must be one of the following
+   - Subpath treat e.g. `TREAT(rootAlias.subpath AS Subtype)`
+   - Subpath treat with root path treat e.g. `TREAT(TREAT(rootAlias AS Subtype).subpath AS Subtype)`
+   - Root path treat followed by subpath e.g. `TREAT(rootAlias AS Subtype).subpath`
+
+== Assumptions
+
+A1. Dereferencing a collection is allowed and multiple dereferences result in the same join node. This is normally not allowed as per JPA spec 4.4.4.1 but most JPA providers allow it anyway.
+If this assumption can't be fulfilled, the *Association treat - SELECT* tests for the following association types can be ignored
+
+* OneToManyList
+* OneToManyInverseSet
+* ManyToManyMapKey
+* ManyToManyMapValue
+
+A2. Treats of relations do not cause filtering of the relation or skipping hierarchy joins. A treat of a relation merely gives access to properties of a subtype.
+Treat joins may lead to a reduction of the joined tables, but only indirectly(see S3).
+
+A3. Correlated relations do not alter the outer query. If a subquery implicitly joins a relation of a parent join alias via the means of JPA navigation,
+the resulting join for that relation must not affect the results of the outer query. This can be achieved e.g. by creating the cross product of the subquery against the relation
+and filtering the relation with the parent join alias. A query like `SELECT (SELECT COUNT(e) FROM SomeEntity e WHERE e.key = o.association.key) FROM Supertype o`
+should be semantically equivalent to `SELECT (SELECT COUNT(e) FROM o.association alias, SomeEntity e WHERE e.key = alias.key) FROM Supertype o`
+
+== Simplification translation strategy
+
+S1. Nested treat expressions in non-FROM clauses can be implemented by replacing subexpressions with join nodes.
+An expression like `TREAT(TREAT(rootAlias AS Subtype).subpath AS Subtype).subpath` will emmit `INNER JOIN TREAT(rootAlias AS Subtype).subpath p`
+and the expression becomes `TREAT(p AS Subtype).subpath`
+
+S2. Subpath treats in non-FROM clauses follow JPA navigation semantics and can be simplified by emmiting an inner join for the treated path 
+and replacing the path with the join alias e.g. `TREAT(rootAlias.subpath AS Subtype).subpath` will emmit `INNER JOIN rootAlias.subpath p` 
+and the expression becomes `TREAT(p AS Subtype).subpath`
+
+S3. Since queries for types that have subtypes should produce concrete subtype values e.g. `SELECT o FROM Supertype o` returns [Subtype1, Subtype2, ...], subtype relations must be semantically left joined.
+A treat join like `LEFT JOIN TREAT(root.subpath Subtype) p` can be simplified to `LEFT JOIN root.subpath p ON TYPE(p) = Subtype` and replacing every usage of `p` with `TREAT(p AS Subtype)`
+
+S4. The join type for a relation join must semantically cascade for joining the type hierarchy of the relation, 
+meaning that e.g. `LEFT JOIN TREAT(root.subpath Subtype)` must use left join semantics not only for joining the subpath relation(might be collection table) 
+and the concrete subtype relation, but also for joining the supertype hierarchy relations.
+The on clause predicates must be put on the appropriate relation joins on clauses so that the `illusion` of joining against a single table is kept(might require predicates to be transformed because `ON KEY(...) = ...` might get tricky)
+
+S5. Due to this possible translation strategy the only new feature that needs deep implementation support is a root path treat.
+When translating to SQL, the root path treat must be translated to the alias of the proper subtype relation.
+
+== Possible optimizations
+
+O1. The optimization of avoiding joins for subtype relations can actually be seen independent of treat support when applying the translation strategy.
+When encountering a top-level equality- or in-predicate of the form `TYPE(fromAlias) = Subtype` or `TYPE(fromAlias) IN (Subtype, Subtype2)` in a WHERE or ON clause, 
+then the type hierarchy joins for the `fromAlias` relation can be reduced to only include the listed subtype relations.
+Since the translation strategy mandates translating a treat join like `JOIN TREAT(rootAlias.subpath AS Subtype) p` to `JOIN rootAlias.subpath p ON TYPE(p) = Subtype`,
+joining other subrelations can be avoided in this case.
+
+O2. Another possible optimization is to avoid joins for super types if no super type properties are used.
+
+O3. If it can be proven, that for top-level predicates of the form `TREAT(root AS Subtype).subpath OPERATOR ...` the predicate is always false for a subtype T1, 
+then the subtype mustn't be joined as instances of that type would be filtered out anyway.
+
+
+In summary, treat joins can be reduced to normal joins with type restrictions and by replacing join aliases with the treated version.
+Subpath treats can be replaced with root path treats by adding inner joins for paths. Treats in general do not cause subtype filtering,
+only the type restrictions do.
+
+== Attention
+
+Having multiple implicit inner joins on different subtype like `TREAT(alias AS Subtype).association` will always result in an empty result set!
+This is NOT because treat should result in something like `TYPE(alias) = Subtype1 AND TYPE(alias) = Subtype2`, but because the inner join condition can't be satisfied.
+
+The following query
+
+`SELECT TREAT(alias AS Subtype1).subtype1Relation, TREAT(alias AS Subtype2).subtype2Relation FROM Supertype alias`
+
+can be simplified to
+
+`SELECT alias1, alias2 FROM Supertype alias JOIN TREAT(alias AS Subtype1).subtype1Relation alias1 JOIN TREAT(alias AS Subtype2).subtype2Relation alias2`
+
+Now it is clear that this can't produce any results because `alias` can't be both `Subtype1` and `Subtype2` at the same time, so one of the two inner joins will filter out the values.
+
+== Findings so far
+
+EclipseLink
+
+ - does not support map in embeddables: https://bugs.eclipse.org/bugs/show_bug.cgi?id=391062
+ - has no support for treat in conjunction with table per class: https://bugs.eclipse.org/bugs/show_bug.cgi?id=441544
+ - wrongly assumes it can filter when encountering a treat
+ - does not support root path treat in FROM
+
+Hibernate
+
+ - has problems with same name properties in inheritance hierarchies: https://hibernate.atlassian.net/browse/HHH-11037
+ - only supports treat in the FROM clause: https://hibernate.atlassian.net/browse/HHH-10988
+ - doesn't properly optimize unnecessary joins away: https://hibernate.atlassian.net/browse/HHH-10887
+ - wrongly assumes it can filter when encountering a treat: https://hibernate.atlassian.net/browse/HHH-9862
+ - joining treated roots not supported: https://hibernate.atlassian.net/browse/HHH-9345
+
+Datanucleus 
+
+ - does not seem to support the TablePerClass mappings: https://github.com/datanucleus/datanucleus-rdbms/issues/89
+
+== Test overview
+ 
+The following should illustrate which test, tests which expression. Every test comes with a **multiple** counterpart to test a query with the expression with 2 different subtypes.
+
+=== Root treat
+
+|======================================================================================================
+|Name                                                          |Expression                             
+|**SELECT**                                                    |                                       
+| selectTreatedRootBasic:                                      |`TREAT(root).property`                 
+| selectTreatedParentRootBasic:                                |`TREAT(parentRoot).property`           
+| selectTreatedRootEmbeddableBasic:                            |`TREAT(root).embeddable.property`      
+| selectTreatedParentRootEmbeddableBasic:                      |`TREAT(parentRoot).embeddable.property`
+|**WHERE**                                                     |                                       
+| whereTreatedRootBasic:                                       |`TREAT(root).property`                 
+| whereTreatedRootEmbeddableBasic:                             |`TREAT(root).embeddable.property`      
+|======================================================================================================
+
+
+=== Association treat
+
+Possible associations
+
+ * ManyToOne
+ * OneToManyList
+ * OneToManyInverseSet
+ * ManyToManyMapKey e.g. KEY(association)
+ * ManyToManyMapValue e.g. VALUE(association) or simply association
+
+
+|====================================================================================================================================
+|Name                                                          |Expression                                                           
+|**SELECT**                                                    |                                                                     
+| selectTreated{Association}:                                  |`TREAT(root.association).property`                                   
+| selectTreatedParent{Association}:                            |`TREAT(parentRoot.association).property`                             
+| selectTreatedEmbeddable{Association}:                        |`TREAT(root.embeddable.association).property`                        
+| selectTreatedParentEmbeddable{Association}:                  |`TREAT(parentRoot.embeddable.association).property`                  
+| selectTreatedEmbeddable{Association}Embeddable:              |`TREAT(root.embeddable.association).embeddable.property`             
+| selectTreatedParentEmbeddable{Association}Embeddable:        |`TREAT(parentRoot.embeddable.association).embeddable.property`       
+| selectTreatedRoot{Association}:                              |`TREAT(TREAT(root).association).property`                            
+| selectTreatedParentRoot{Association}:                        |`TREAT(TREAT(parentRoot).association).property`                      
+| selectTreatedRootEmbeddable{Association}:                    |`TREAT(TREAT(root).embeddable.association).property`                 
+| selectTreatedParentRootEmbeddable{Association}:              |`TREAT(TREAT(parentRoot).embeddable.association).property`           
+| selectTreatedRootEmbeddable{Association}Embeddable:          |`TREAT(TREAT(root).embeddable.association).embeddable.property`      
+| selectTreatedParentRootEmbeddable{Association}Embeddable:    |`TREAT(TREAT(parentRoot).embeddable.association).embeddable.property`
+|**JOIN**                                                      |                                                                     
+| treatJoin{Association}:                                      |`TREAT(root.association)`                                            
+| treatJoinParent{Association}:                                |`TREAT(parentRoot.association)`                                      
+| treatJoinEmbeddable{Association}:                            |`TREAT(root.embeddable.association)`                                 
+| treatJoinParentEmbeddable{Association}:                      |`TREAT(parentRoot.embeddable.association)`                           
+| joinTreatedRoot{Association}:                                |`TREAT(root).association`                                            
+| joinTreatedParentRoot{Association}:                          |`TREAT(parentRoot).association`                                      
+| joinTreatedRootEmbeddable{Association}:                      |`TREAT(root).embeddable.association`                                 
+| joinTreatedParentRootEmbeddable{Association}:                |`TREAT(parentRoot).embeddable.association`                           
+| treatJoinTreatedRoot{Association}:                           |`TREAT(TREAT(root).association)`                                     
+| treatJoinTreatedParentRoot{Association}:                     |`TREAT(TREAT(parentRoot).association)`                               
+| treatJoinTreatedRootEmbeddable{Association}:                 |`TREAT(TREAT(root).embeddable.association)`                          
+| treatJoinTreatedParentRootEmbeddable{Association}:           |`TREAT(TREAT(parentRoot).embeddable.association)`                    
+|====================================================================================================================================
+
+== Test results
+ 
+=== EclipseLink results
+
+Issues
+
+ 1. [[EL1]] treat with TABLE_PER_CLASS inheritance strategy is unsupported
+ 2. [[EL2]] filters when encounters treat: Filtering a relation should only be done when the treat is in the FROM clause
+ 3. [[EL3]] treat of KEY not supported
+ 4. [[EL4]] dereference after treat leads to "cannot be resolved to a collection type" or "cannot be resolved to a valid type"
+ 5. [[EL5]] wrongly complains about "cast outside of an inheritance hierarchy"
+ 6. [[EL6]] constructs an SQL query that doesn't make sense
+ 7. [[EL7]] treat joining in the root of a subquery FROM clause leads to a parser error
+ 8. [[EL8]] extended join path not supported
+ 9. [[EL9]] left join semantics not properly propagated
+ 10. [[EL10]] treat as root in subquery FROM not supported
+ 11. [[EL11]] treat join of map value results in a NPE during SQL rendering
+
+==== Treat root
+
+[cols="e,^,^,^"]
+|=================================================================================================================================================
+|Name                                                               | Joined                  | SingleTable             | TablePerClass
+|**SELECT**                                                         |                         |                         |
+| selectTreatedRootBasic                                            |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedRootBasic                                    |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedParentRootBasic                                      |:fail:    ^<<EL2>>^      |:warn:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedParentRootBasic                              |:fail:    ^<<EL2>>^      |:warn:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedRootEmbeddableBasic                                  |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedRootEmbeddableBasic                          |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedParentRootEmbeddableBasic                            |:fail:    ^<<EL2>>^      |:warn:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedParentRootEmbeddableBasic                    |:fail:    ^<<EL2>>^      |:warn:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+|**WHERE**                                                          |                         |                         |
+| whereTreatedRootBasic                                             |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| whereMultipleTreatedRootBasic                                     |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| whereTreatedRootEmbeddableBasic                                   |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+| whereMultipleTreatedRootEmbeddableBasic                           |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL1>>^     
+|=================================================================================================================================================
+
+==== Association treat
+
+===== Joined
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL2>>^     
+| selectMultipleTreated{Association}                                |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL2>>^     
+| selectTreatedParent{Association}                                  |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:pass:                   
+| selectMultipleTreatedParent{Association}                          |:fail:    ^<<EL6>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:pass:                   
+| selectTreatedEmbeddable{Association}                              |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectTreatedParentEmbeddable{Association}                        |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:    ^<<EL6>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectTreatedParentEmbeddable{Association}Embeddable              |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:    ^<<EL6>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectTreatedRoot{Association}                                    |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectMultipleTreatedRoot{Association}                            |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectTreatedParentRoot{Association}                              |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectMultipleTreatedParentRoot{Association}                      |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectTreatedRootEmbeddable{Association}                          |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectMultipleTreatedRootEmbeddable{Association}                  |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectTreatedParentRootEmbeddable{Association}                    |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectTreatedRootEmbeddable{Association}Embeddable                |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^      
+|**JOIN**                                                           |                         |                         |                         |                         |                    
+| treatJoin{Association}                                            |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL11>>^     
+| treatJoinMultiple{Association}                                    |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL11>>^     
+| treatJoinParent{Association}                                      |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinMultipleParent{Association}                              |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinEmbeddable{Association}                                  |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| treatJoinMultipleEmbeddable{Association}                          |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| treatJoinParentEmbeddable{Association}                            |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| joinTreatedRoot{Association}                                      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL8>>^     
+| joinMultipleTreatedRoot{Association}                              |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL8>>^     
+| joinTreatedParentRoot{Association}                                |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| joinMultipleTreatedParentRoot{Association}                        |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| joinTreatedRootEmbeddable{Association}                            |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL8>>^      
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL8>>^      
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinTreatedRoot{Association}                                 |:fail:    ^<<EL9>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:    ^<<EL9>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| treatJoinTreatedParentRoot{Association}                           |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:    ^<<EL2>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:    ^<<EL2>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+|=====================================================================================================================================================================================================
+
+===== SingleTable
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL2>>^     
+| selectMultipleTreated{Association}                                |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL2>>^     
+| selectTreatedParent{Association}                                  |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:pass:                  
+| selectMultipleTreatedParent{Association}                          |:fail:    ^<<EL6>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:pass:                  
+| selectTreatedEmbeddable{Association}                              |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectTreatedParentEmbeddable{Association}                        |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:    ^<<EL6>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectTreatedParentEmbeddable{Association}Embeddable              |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:    ^<<EL6>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| selectTreatedRoot{Association}                                    |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectMultipleTreatedRoot{Association}                            |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectTreatedParentRoot{Association}                              |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectMultipleTreatedParentRoot{Association}                      |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectTreatedRootEmbeddable{Association}                          |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectMultipleTreatedRootEmbeddable{Association}                  |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectTreatedParentRootEmbeddable{Association}                    |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectTreatedRootEmbeddable{Association}Embeddable                |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:pass:                   |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:fail:    ^<<EL6>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+|**JOIN**                                                           |                         |                         |                         |                         |                    
+| treatJoin{Association}                                            |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL11>>^     
+| treatJoinMultiple{Association}                                    |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL11>>^     
+| treatJoinParent{Association}                                      |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinMultipleParent{Association}                              |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinEmbeddable{Association}                                  |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| treatJoinMultipleEmbeddable{Association}                          |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL2>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL5>>^     
+| treatJoinParentEmbeddable{Association}                            |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| joinTreatedRoot{Association}                                      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL8>>^     
+| joinMultipleTreatedRoot{Association}                              |:fail:    ^<<EL8>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL8>>^     
+| joinTreatedParentRoot{Association}                                |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| joinMultipleTreatedParentRoot{Association}                        |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| joinTreatedRootEmbeddable{Association}                            |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL8>>^      
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL8>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL8>>^      
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinTreatedRoot{Association}                                 |:fail:    ^<<EL9>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:    ^<<EL9>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| treatJoinTreatedParentRoot{Association}                           |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:    ^<<EL8>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:    ^<<EL8>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL4>>^      |:fail:    ^<<EL3>>^      |:fail:    ^<<EL4>>^     
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:    ^<<EL7>>^      |:fail:    ^<<EL10>>^     |:fail:    ^<<EL10>>^     |:fail:    ^<<EL3>>^      |:fail:    ^<<EL10>>^     
+|=====================================================================================================================================================================================================
+
+===== TablePerClass
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreated{Association}                                |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedParent{Association}                                  |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedParent{Association}                          |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedEmbeddable{Association}                              |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedParentEmbeddable{Association}                        |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedParentEmbeddable{Association}Embeddable              |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedRoot{Association}                                    |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedRoot{Association}                            |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedParentRoot{Association}                              |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedParentRoot{Association}                      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedRootEmbeddable{Association}                          |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedRootEmbeddable{Association}                  |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedParentRootEmbeddable{Association}                    |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedRootEmbeddable{Association}Embeddable                |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+|**JOIN**                                                           |                         |                         |                         |                         |                   
+| treatJoin{Association}                                            |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinMultiple{Association}                                    |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinParent{Association}                                      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinMultipleParent{Association}                              |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinEmbeddable{Association}                                  |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinMultipleEmbeddable{Association}                          |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinParentEmbeddable{Association}                            |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| joinTreatedRoot{Association}                                      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| joinMultipleTreatedRoot{Association}                              |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| joinTreatedParentRoot{Association}                                |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| joinMultipleTreatedParentRoot{Association}                        |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| joinTreatedRootEmbeddable{Association}                            |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinTreatedRoot{Association}                                 |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinTreatedParentRoot{Association}                           |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^      |:fail:    ^<<EL1>>^     
+|=====================================================================================================================================================================================================
+
+The latest EclipseLink results
+
+include::eclipselink-results.adoc[]
+
+==== Hibernate results
+
+Issues
+
+ 1. [[HH1]] treated paths not supported
+ 2. [[HH2]] subquery parsing error
+ 3. [[HH3]] treated embeddable parsing error
+ 4. [[HH4]] join type not cascading to superclass relation joins
+ 5. [[HH5]] joining treated roots not supported
+ 6. [[HH6]] treat of KEY not supported
+ 7. [[HH7]] joining just the last collection table instead of the union over all
+ 8. [[HH8]] filters when encounters treat: Filtering a relation should only be done when the treat is in the FROM clause
+ 
+
+==== Treat root
+
+[cols="e,^,^,^"]
+|=================================================================================================================================================
+|Name                                                               | Joined                  | SingleTable             | TablePerClass
+|**SELECT**                                                         |                         |                         |
+| selectTreatedRootBasic                                            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRootBasic                                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRootBasic                                      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^           
+| selectMultipleTreatedParentRootBasic                              |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^           
+| selectTreatedRootEmbeddableBasic                                  |:fail:    ^<<HH3>>^      |:fail:    ^<<HH3>>^      |:fail:    ^<<HH3>>^           
+| selectMultipleTreatedRootEmbeddableBasic                          |:fail:    ^<<HH3>>^      |:fail:    ^<<HH3>>^      |:fail:    ^<<HH3>>^           
+| selectTreatedParentRootEmbeddableBasic                            |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^           
+| selectMultipleTreatedParentRootEmbeddableBasic                    |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^           
+|**WHERE**                                                          |                         |                         |                         
+| whereTreatedRootBasic                                             |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^           
+| whereMultipleTreatedRootBasic                                     |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^           
+| whereTreatedRootEmbeddableBasic                                   |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^           
+| whereMultipleTreatedRootEmbeddableBasic                           |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^           
+|=================================================================================================================================================
+
+==== Association treat
+
+===== Joined
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreated{Association}                                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParent{Association}                                  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParent{Association}                          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedEmbeddable{Association}                              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParentEmbeddable{Association}                        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParentEmbeddable{Association}Embeddable              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedRoot{Association}                                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRoot{Association}                            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRoot{Association}                              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRoot{Association}                      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedRootEmbeddable{Association}                          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRootEmbeddable{Association}                  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRootEmbeddable{Association}                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedRootEmbeddable{Association}Embeddable                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+|**JOIN**                                                           |                         |                         |                         |                         |                    
+| treatJoin{Association}                                            |:fail:    ^<<HH4>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                    
+| treatJoinMultiple{Association}                                    |:fail:    ^<<HH4>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                    
+| treatJoinParent{Association}                                      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^           
+| treatJoinMultipleParent{Association}                              |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^           
+| treatJoinEmbeddable{Association}                                  |:fail:    ^<<HH4>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                   
+| treatJoinMultipleEmbeddable{Association}                          |:fail:    ^<<HH4>>^      |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                   
+| treatJoinParentEmbeddable{Association}                            |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinTreatedRoot{Association}                                      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| joinMultipleTreatedRoot{Association}                              |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| joinTreatedParentRoot{Association}                                |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinMultipleTreatedParentRoot{Association}                        |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinTreatedRootEmbeddable{Association}                            |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^          
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^          
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinTreatedRoot{Association}                                 |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinTreatedParentRoot{Association}                           |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+|=====================================================================================================================================================================================================
+
+===== SingleTable
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreated{Association}                                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParent{Association}                                  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParent{Association}                          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedEmbeddable{Association}                              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParentEmbeddable{Association}                        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParentEmbeddable{Association}Embeddable              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedRoot{Association}                                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRoot{Association}                            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRoot{Association}                              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRoot{Association}                      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedRootEmbeddable{Association}                          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRootEmbeddable{Association}                  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRootEmbeddable{Association}                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedRootEmbeddable{Association}Embeddable                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+|**JOIN**                                                           |                         |                         |                         |                         |                    
+| treatJoin{Association}                                            |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                    
+| treatJoinMultiple{Association}                                    |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                    
+| treatJoinParent{Association}                                      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^           
+| treatJoinMultipleParent{Association}                              |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^           
+| treatJoinEmbeddable{Association}                                  |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                   
+| treatJoinMultipleEmbeddable{Association}                          |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                   
+| treatJoinParentEmbeddable{Association}                            |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinTreatedRoot{Association}                                      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| joinMultipleTreatedRoot{Association}                              |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| joinTreatedParentRoot{Association}                                |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinMultipleTreatedParentRoot{Association}                        |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinTreatedRootEmbeddable{Association}                            |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^          
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^          
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinTreatedRoot{Association}                                 |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinTreatedParentRoot{Association}                           |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+|=====================================================================================================================================================================================================
+
+===== TablePerClass
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreated{Association}                                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParent{Association}                                  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParent{Association}                          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedEmbeddable{Association}                              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParentEmbeddable{Association}                        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedParentEmbeddable{Association}Embeddable              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^          
+| selectTreatedRoot{Association}                                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRoot{Association}                            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRoot{Association}                              |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRoot{Association}                      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedRootEmbeddable{Association}                          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRootEmbeddable{Association}                  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRootEmbeddable{Association}                    |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedRootEmbeddable{Association}Embeddable                |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH1>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH1>>^           
+|**JOIN**                                                           |                         |                         |                         |                         |                    
+| treatJoin{Association}                                            |:pass:                   |:fail:    ^<<HH7>>^      |:pass:                   |:fail:    ^<<EL6>>^      |:fail:    ^<<HH7>>^      
+| treatJoinMultiple{Association}                                    |:pass:                   |:fail:    ^<<HH7>>^      |:pass:                   |:fail:    ^<<EL6>>^      |:fail:    ^<<HH7>>^      
+| treatJoinParent{Association}                                      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^           
+| treatJoinMultipleParent{Association}                              |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^           
+| treatJoinEmbeddable{Association}                                  |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                   
+| treatJoinMultipleEmbeddable{Association}                          |:pass:                   |:pass:                   |:pass:                   |:fail:    ^<<EL6>>^      |:pass:                   
+| treatJoinParentEmbeddable{Association}                            |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinTreatedRoot{Association}                                      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| joinMultipleTreatedRoot{Association}                              |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| joinTreatedParentRoot{Association}                                |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinMultipleTreatedParentRoot{Association}                        |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinTreatedRootEmbeddable{Association}                            |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^          
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^          
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinTreatedRoot{Association}                                 |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinTreatedParentRoot{Association}                           |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH5>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH5>>^         
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH2>>^      |:fail:    ^<<HH6>>^      |:fail:    ^<<HH2>>^          
+|=====================================================================================================================================================================================================
+
+The latest Hibernate results
+
+include::hibernate-results.adoc[]
+
+==== Datanucleus results
+
+Datanucleus can't handle the entity mappings which is why it can't be tested.
+
+// The latest Datanucleus results
+
+// include::datanucleus-results.adoc[]

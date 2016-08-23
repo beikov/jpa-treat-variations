@@ -27,7 +27,7 @@ public class TablePerClassEmbeddableSub2 implements Sub2Embeddable<TablePerClass
     private TablePerClassBase sub2Parent;
     private Set<TablePerClassSub2> sub2Children = new HashSet<>();
     private List<TablePerClassBase> sub2List = new ArrayList<>();
-    private Map<String, TablePerClassBase> sub2Map = new HashMap<>();
+    private Map<TablePerClassBase, TablePerClassBase> sub2Map = new HashMap<>();
 
     public TablePerClassEmbeddableSub2() {
     }
@@ -90,12 +90,12 @@ public class TablePerClassEmbeddableSub2 implements Sub2Embeddable<TablePerClass
     // We can't have a constraint in this case because we don't know the exact table this will refer to
     @JoinTable(name = "table_per_class_embeddable_2_map", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     @MapKeyColumn(name = "tpces2m_map_key", nullable = false, length = 20)
-    public Map<String, TablePerClassBase> getSub2Map() {
+    public Map<TablePerClassBase, TablePerClassBase> getSub2Map() {
         return sub2Map;
     }
 
     @Override
-    public void setSub2Map(Map<String, ? extends TablePerClassBase> sub2Map) {
-        this.sub2Map = (Map<String, TablePerClassBase>) sub2Map;
+    public void setSub2Map(Map<? extends TablePerClassBase, ? extends TablePerClassBase> sub2Map) {
+        this.sub2Map = (Map<TablePerClassBase, TablePerClassBase>) sub2Map;
     }
 }

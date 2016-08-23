@@ -1,0 +1,195 @@
+
+==== Root treat
+
+[cols="e,^,^,^"]
+|=================================================================================================================================================
+|Name                                                               | Joined                  | SingleTable             | TablePerClass
+|**SELECT**                                                         |                         |                         |
+| selectTreatedRootBasic                                            |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRootBasic                                    |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRootBasic                                      |:fail:                   |:pass:                   |:fail:                   
+| selectMultipleTreatedParentRootBasic                              |:fail:                   |:pass:                   |:fail:                   
+| selectTreatedRootEmbeddableBasic                                  |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRootEmbeddableBasic                          |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRootEmbeddableBasic                            |:fail:                   |:pass:                   |:fail:                   
+| selectMultipleTreatedParentRootEmbeddableBasic                    |:fail:                   |:pass:                   |:fail:                   
+|**WHERE**                                                          |                         |                         |
+| whereTreatedRootBasic                                             |:fail:                   |:fail:                   |:fail:                   
+| whereMultipleTreatedRootBasic                                     |:fail:                   |:fail:                   |:fail:                   
+| whereTreatedRootEmbeddableBasic                                   |:fail:                   |:fail:                   |:fail:                   
+| whereMultipleTreatedRootEmbeddableBasic                           |:fail:                   |:fail:                   |:fail:                   
+|=================================================================================================================================================
+
+    
+==== Association treat
+
+===== Joined
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreated{Association}                                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParent{Association}                                  |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:pass:                   
+| selectMultipleTreatedParent{Association}                          |:fail:                   |:pass:                   |:pass:                   |:fail:                   |:pass:                   
+| selectTreatedEmbeddable{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentEmbeddable{Association}                        |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentEmbeddable{Association}Embeddable              |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| selectTreatedRoot{Association}                                    |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRoot{Association}                            |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRoot{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRoot{Association}                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedRootEmbeddable{Association}                          |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRootEmbeddable{Association}                  |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRootEmbeddable{Association}                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedRootEmbeddable{Association}Embeddable                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+|**JOIN**                                                           |                         |                         |                         |                         |                    
+| treatJoin{Association}                                            |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| treatJoinMultiple{Association}                                    |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| treatJoinParent{Association}                                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleParent{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinEmbeddable{Association}                                  |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| treatJoinMultipleEmbeddable{Association}                          |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| treatJoinParentEmbeddable{Association}                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedRoot{Association}                                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedRoot{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedParentRoot{Association}                                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedParentRoot{Association}                        |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedRootEmbeddable{Association}                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedRoot{Association}                                 |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedParentRoot{Association}                           |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+|=====================================================================================================================================================================================================
+
+===== SingleTable
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreated{Association}                                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParent{Association}                                  |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:pass:                   
+| selectMultipleTreatedParent{Association}                          |:fail:                   |:pass:                   |:pass:                   |:fail:                   |:pass:                   
+| selectTreatedEmbeddable{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentEmbeddable{Association}                        |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentEmbeddable{Association}Embeddable              |:pass:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:                   |:pass:                   |:pass:                   |:fail:                   |:fail:                   
+| selectTreatedRoot{Association}                                    |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRoot{Association}                            |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRoot{Association}                              |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRoot{Association}                      |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedRootEmbeddable{Association}                          |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRootEmbeddable{Association}                  |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRootEmbeddable{Association}                    |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedRootEmbeddable{Association}Embeddable                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:pass:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+|**JOIN**                                                           |                         |                         |                         |                         |                    
+| treatJoin{Association}                                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultiple{Association}                                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinParent{Association}                                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleParent{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinEmbeddable{Association}                                  |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleEmbeddable{Association}                          |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinParentEmbeddable{Association}                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedRoot{Association}                                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedRoot{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedParentRoot{Association}                                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedParentRoot{Association}                        |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedRootEmbeddable{Association}                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedRoot{Association}                                 |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedParentRoot{Association}                           |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+|=====================================================================================================================================================================================================
+
+===== TablePerClass
+
+[cols="e,^,^,^,^,^"]
+|=====================================================================================================================================================================================================
+|Name                                                               | ManyToOne               | OneToManyList           | OneToManyInverseSet     | ManyToManyMapKey        | ManyToManyMapValue
+|**SELECT**                                                         |                         |                         |                         |                         |                    
+| selectTreated{Association}                                        |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreated{Association}                                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParent{Association}                                  |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParent{Association}                          |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedEmbeddable{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedEmbeddable{Association}                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentEmbeddable{Association}                        |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentEmbeddable{Association}                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedEmbeddable{Association}Embeddable                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedEmbeddable{Association}Embeddable            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentEmbeddable{Association}Embeddable              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentEmbeddable{Association}Embeddable      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedRoot{Association}                                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRoot{Association}                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRoot{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRoot{Association}                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedRootEmbeddable{Association}                          |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRootEmbeddable{Association}                  |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRootEmbeddable{Association}                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRootEmbeddable{Association}            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedRootEmbeddable{Association}Embeddable                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedRootEmbeddable{Association}Embeddable        |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectTreatedParentRootEmbeddable{Association}Embeddable          |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| selectMultipleTreatedParentRootEmbeddable{Association}Embeddable  |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+|**JOIN**                                                           |                         |                         |                         |                         |                    
+| treatJoin{Association}                                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultiple{Association}                                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinParent{Association}                                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleParent{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinEmbeddable{Association}                                  |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleEmbeddable{Association}                          |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinParentEmbeddable{Association}                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleParentEmbeddable{Association}                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedRoot{Association}                                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedRoot{Association}                              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedParentRoot{Association}                                |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedParentRoot{Association}                        |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedRootEmbeddable{Association}                            |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedRootEmbeddable{Association}                    |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinTreatedParentRootEmbeddable{Association}                      |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| joinMultipleTreatedParentRootEmbeddable{Association}              |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedRoot{Association}                                 |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedRoot{Association}                         |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedParentRoot{Association}                           |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedParentRoot{Association}                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedRootEmbeddable{Association}                       |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedRootEmbeddable{Association}               |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinTreatedParentRootEmbeddable{Association}                 |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+| treatJoinMultipleTreatedParentRootEmbeddable{Association}         |:fail:                   |:fail:                   |:fail:                   |:fail:                   |:fail:                   
+|=====================================================================================================================================================================================================

@@ -29,7 +29,7 @@ public class SingleTableSub1 extends SingleTableBase implements Sub1<SingleTable
     private SingleTableEmbeddableSub1 embeddable1 = new SingleTableEmbeddableSub1();
     private List<SingleTableBase> list1 = new ArrayList<>();
     private Set<SingleTableSub1> children1 = new HashSet<>();
-    private Map<String, SingleTableBase> map1 = new HashMap<>();
+    private Map<SingleTableBase, SingleTableBase> map1 = new HashMap<>();
 
     public SingleTableSub1() {
     }
@@ -121,12 +121,12 @@ public class SingleTableSub1 extends SingleTableBase implements Sub1<SingleTable
     @ManyToMany
     @JoinTable(name = "single_table_map_1")
     @MapKeyColumn(name = "stm1_map_key", nullable = false, length = 20)
-    public Map<String, SingleTableBase> getMap1() {
+    public Map<SingleTableBase, SingleTableBase> getMap1() {
         return map1;
     }
 
     @Override
-    public void setMap1(Map<String, ? extends SingleTableBase> map1) {
-        this.map1 = (Map<String, SingleTableBase>) map1;
+    public void setMap1(Map<? extends SingleTableBase, ? extends SingleTableBase> map1) {
+        this.map1 = (Map<SingleTableBase, SingleTableBase>) map1;
     }
 }

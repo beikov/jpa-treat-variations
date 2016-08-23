@@ -7,9 +7,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
+public class SelectManyToOneTest extends AbstractTreatVariationsTest {
 
-    public AssociationManyToOneTest(String strategy, String objectPrefix) {
+    public SelectManyToOneTest(String strategy, String objectPrefix) {
         super(strategy, objectPrefix);
     }
     
@@ -40,7 +40,7 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectTreatedManyToOne-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
+        // Inner join on b.parent => 2 instances
         Assert.assertEquals(2, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, 101);
@@ -64,7 +64,7 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectMultipleTreatedManyToOne-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
+        // Inner join on b.parent => 2 instances
         Assert.assertEquals(2, bases.size());
         assertRemoved(bases, new Object[] { 101,  null });
         assertRemoved(bases, new Object[] { null, 102  });
@@ -142,7 +142,7 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectTreatedEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
+        // Inner join on b.parent => 2 instances
         Assert.assertEquals(2, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, 101);
@@ -166,7 +166,7 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectMultipleTreatedEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
+        // Inner join on b.parent => 2 instances
         Assert.assertEquals(2, bases.size());
         assertRemoved(bases, new Object[] { 101,  null });
         assertRemoved(bases, new Object[] { null, 102  });
@@ -244,7 +244,7 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectTreatedEmbeddableManyToOneEmbeddable-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
+        // Inner join on b.parent => 2 instances
         Assert.assertEquals(2, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, 101);
@@ -268,7 +268,7 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectMultipleTreatedEmbeddableManyToOneEmbeddable-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
+        // Inner join on b.parent => 2 instances
         Assert.assertEquals(2, bases.size());
         assertRemoved(bases, new Object[] { 101,  null });
         assertRemoved(bases, new Object[] { null, 102  });
@@ -331,8 +331,8 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
     @Test
     public void selectTreatedRootManyToOne() {
         // EclipseLink
-        // - Joined        : issues 1 query, FAILS because filters subtype
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
         // - TablePerClass : not working, strategy unsupported
         // Hibernate
         // - Joined        : not working, treated paths unsupported
@@ -346,17 +346,16 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectTreatedRootManyToOne-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
-        Assert.assertEquals(2, bases.size());
-        assertRemoved(bases, null);
+        // Inner join on b.parent1 => 1 instance
+        Assert.assertEquals(1, bases.size());
         assertRemoved(bases, 101);
     }
     
     @Test
     public void selectMultipleTreatedRootManyToOne() {
         // EclipseLink
-        // - Joined        : issues 1 query, FAILS because filters subtype
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
         // - TablePerClass : not working, strategy unsupported
         // Hibernate
         // - Joined        : not working, treated paths unsupported
@@ -370,10 +369,8 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectMultipleTreatedRootManyToOne-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
-        Assert.assertEquals(2, bases.size());
-        assertRemoved(bases, new Object[] { 101,  null });
-        assertRemoved(bases, new Object[] { null, 102  });
+        // Inner join on b.parent1 and b.parent2 => 0 instances
+        Assert.assertEquals(0, bases.size());
     }
     
     @Test
@@ -433,8 +430,8 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
     @Test
     public void selectTreatedRootEmbeddableManyToOne() {
         // EclipseLink
-        // - Joined        : issues 1 query, FAILS because filters subtype
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
         // - TablePerClass : not working, strategy unsupported
         // Hibernate
         // - Joined        : not working, treated paths unsupported
@@ -448,17 +445,16 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
-        Assert.assertEquals(2, bases.size());
-        assertRemoved(bases, null);
+        // Inner join on b.embeddable1.sub1Parent => 1 instance
+        Assert.assertEquals(1, bases.size());
         assertRemoved(bases, 101);
     }
     
     @Test
     public void selectMultipleTreatedRootEmbeddableManyToOne() {
         // EclipseLink
-        // - Joined        : issues 1 query, FAILS because filters subtype
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
         // - TablePerClass : not working, strategy unsupported
         // Hibernate
         // - Joined        : not working, treated paths unsupported
@@ -472,10 +468,8 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectMultipleTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
-        Assert.assertEquals(2, bases.size());
-        assertRemoved(bases, new Object[] { 101,  null });
-        assertRemoved(bases, new Object[] { null, 102  });
+        // Inner join on b.embeddable1.sub1Parent and b.embeddable2.sub2Parent => 0 instances
+        Assert.assertEquals(0, bases.size());
     }
     
     @Test
@@ -535,8 +529,8 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
     @Test
     public void selectTreatedRootEmbeddableManyToOneEmbeddable() {
         // EclipseLink
-        // - Joined        : issues 1 query, FAILS because filters subtype
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
         // - TablePerClass : not working, strategy unsupported
         // Hibernate
         // - Joined        : not working, treated paths unsupported
@@ -550,17 +544,16 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectTreatedRootEmbeddableManyToOneEmbeddable-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
+        // Inner join on b.embeddable1.sub1Parent => 1 instance
         Assert.assertEquals(2, bases.size());
-        assertRemoved(bases, null);
         assertRemoved(bases, 101);
     }
     
     @Test
     public void selectMultipleTreatedRootEmbeddableManyToOneEmbeddable() {
         // EclipseLink
-        // - Joined        : issues 1 query, FAILS because filters subtype
-        // - SingleTable   : issues 1 query, FAILS because filters subtype
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
         // - TablePerClass : not working, strategy unsupported
         // Hibernate
         // - Joined        : not working, treated paths unsupported
@@ -574,10 +567,8 @@ public class AssociationManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("selectMultipleTreatedRootEmbeddableManyToOneEmbeddable-" + strategy);
         
         // From => 4 instances
-        // Inner join on b.parent => 2 instance
-        Assert.assertEquals(2, bases.size());
-        assertRemoved(bases, new Object[] { 101,  null });
-        assertRemoved(bases, new Object[] { null, 102  });
+        // Inner join on b.embeddable1.sub1Parent and b.embeddable2.sub1Parent => 0 instances
+        Assert.assertEquals(0, bases.size());
     }
     
     @Test

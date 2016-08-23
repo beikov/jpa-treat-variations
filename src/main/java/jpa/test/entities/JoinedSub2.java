@@ -29,7 +29,7 @@ public class JoinedSub2 extends JoinedBase implements Sub2<JoinedBase, JoinedEmb
     private JoinedEmbeddableSub2 embeddable2 = new JoinedEmbeddableSub2();
     private List<JoinedBase> list2 = new ArrayList<>();
     private Set<JoinedSub2> children2 = new HashSet<>();
-    private Map<String, JoinedBase> map2 = new HashMap<>();
+    private Map<JoinedBase, JoinedBase> map2 = new HashMap<>();
 
     public JoinedSub2() {
     }
@@ -120,12 +120,12 @@ public class JoinedSub2 extends JoinedBase implements Sub2<JoinedBase, JoinedEmb
     @ManyToMany
     @JoinTable(name = "joined_map_2")
     @MapKeyColumn(name = "jm2_map_key", nullable = false, length = 20)
-    public Map<String, JoinedBase> getMap2() {
+    public Map<JoinedBase, JoinedBase> getMap2() {
         return map2;
     }
 
     @Override
-    public void setMap2(Map<String, ? extends JoinedBase> map2) {
-        this.map2 = (Map<String, JoinedBase>) map2;
+    public void setMap2(Map<? extends JoinedBase, ? extends JoinedBase> map2) {
+        this.map2 = (Map<JoinedBase, JoinedBase>) map2;
     }
 }

@@ -26,7 +26,10 @@ import jpa.test.entities.TablePerClassSub2;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.FixMethodOrder;
+import org.junit.runners.MethodSorters;
 
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public abstract class AbstractTreatVariationsTest {
     
     protected EntityManagerFactory emf;
@@ -134,14 +137,14 @@ public abstract class AbstractTreatVariationsTest {
         ((List<Base<?, ?>>) s1Parent.getList1()).add(s2);
         ((List<Base<?, ?>>) s1Parent.getEmbeddable().getList()).add(s2);
         ((List<Base<?, ?>>) s1Parent.getEmbeddable1().getSub1List()).add(s2);
-        ((Map<String, Base<?, ?>>) s1.getMap()).put(s1Parent.getName(), s1Parent);
-        ((Map<String, Base<?, ?>>) s1.getMap1()).put(s1Parent.getName(), s1Parent);
-        ((Map<String, Base<?, ?>>) s1.getEmbeddable().getMap()).put(s1Parent.getName(), s1Parent);
-        ((Map<String, Base<?, ?>>) s1.getEmbeddable1().getSub1Map()).put(s1Parent.getName(), s1Parent);
-        ((Map<String, Base<?, ?>>) s1Parent.getMap()).put(s2.getName(), s2);
-        ((Map<String, Base<?, ?>>) s1Parent.getMap1()).put(s2.getName(), s2);
-        ((Map<String, Base<?, ?>>) s1Parent.getEmbeddable().getMap()).put(s2.getName(), s2);
-        ((Map<String, Base<?, ?>>) s1Parent.getEmbeddable1().getSub1Map()).put(s2.getName(), s2);
+        ((Map<Base<?, ?>, Base<?, ?>>) s1.getMap()).put(s1Parent, s1Parent);
+        ((Map<Base<?, ?>, Base<?, ?>>) s1.getMap1()).put(s1Parent, s1Parent);
+        ((Map<Base<?, ?>, Base<?, ?>>) s1.getEmbeddable().getMap()).put(s1Parent, s1Parent);
+        ((Map<Base<?, ?>, Base<?, ?>>) s1.getEmbeddable1().getSub1Map()).put(s1Parent, s1Parent);
+        ((Map<Base<?, ?>, Base<?, ?>>) s1Parent.getMap()).put(s2, s2);
+        ((Map<Base<?, ?>, Base<?, ?>>) s1Parent.getMap1()).put(s2, s2);
+        ((Map<Base<?, ?>, Base<?, ?>>) s1Parent.getEmbeddable().getMap()).put(s2, s2);
+        ((Map<Base<?, ?>, Base<?, ?>>) s1Parent.getEmbeddable1().getSub1Map()).put(s2, s2);
         
         s2Parent.setValue(102);
         s2Parent.setSub2Value(102);
@@ -163,14 +166,14 @@ public abstract class AbstractTreatVariationsTest {
         ((List<Base<?, ?>>) s2Parent.getList2()).add(s1);
         ((List<Base<?, ?>>) s2Parent.getEmbeddable().getList()).add(s1);
         ((List<Base<?, ?>>) s2Parent.getEmbeddable2().getSub2List()).add(s1);
-        ((Map<String, Base<?, ?>>) s2.getMap()).put(s2Parent.getName(), s2Parent);
-        ((Map<String, Base<?, ?>>) s2.getMap2()).put(s2Parent.getName(), s2Parent);
-        ((Map<String, Base<?, ?>>) s2.getEmbeddable().getMap()).put(s2Parent.getName(), s2Parent);
-        ((Map<String, Base<?, ?>>) s2.getEmbeddable2().getSub2Map()).put(s2Parent.getName(), s2Parent);
-        ((Map<String, Base<?, ?>>) s2Parent.getMap()).put(s1.getName(), s1);
-        ((Map<String, Base<?, ?>>) s2Parent.getMap2()).put(s1.getName(), s1);
-        ((Map<String, Base<?, ?>>) s2Parent.getEmbeddable().getMap()).put(s1.getName(), s1);
-        ((Map<String, Base<?, ?>>) s2Parent.getEmbeddable2().getSub2Map()).put(s1.getName(), s1);
+        ((Map<Base<?, ?>, Base<?, ?>>) s2.getMap()).put(s2Parent, s2Parent);
+        ((Map<Base<?, ?>, Base<?, ?>>) s2.getMap2()).put(s2Parent, s2Parent);
+        ((Map<Base<?, ?>, Base<?, ?>>) s2.getEmbeddable().getMap()).put(s2Parent, s2Parent);
+        ((Map<Base<?, ?>, Base<?, ?>>) s2.getEmbeddable2().getSub2Map()).put(s2Parent, s2Parent);
+        ((Map<Base<?, ?>, Base<?, ?>>) s2Parent.getMap()).put(s1, s1);
+        ((Map<Base<?, ?>, Base<?, ?>>) s2Parent.getMap2()).put(s1, s1);
+        ((Map<Base<?, ?>, Base<?, ?>>) s2Parent.getEmbeddable().getMap()).put(s1, s1);
+        ((Map<Base<?, ?>, Base<?, ?>>) s2Parent.getEmbeddable2().getSub2Map()).put(s1, s1);
     }
     
     private void persist(

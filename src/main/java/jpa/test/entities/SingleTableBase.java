@@ -17,7 +17,7 @@ public abstract class SingleTableBase implements Serializable, Base<SingleTableB
     private SingleTableEmbeddable embeddable = new SingleTableEmbeddable();
     private List<SingleTableBase> list = new ArrayList<>();
     private Set<SingleTableBase> children = new HashSet<>();
-    private Map<String, SingleTableBase> map = new HashMap<>();
+    private Map<SingleTableBase, SingleTableBase> map = new HashMap<>();
 
     public SingleTableBase() {
     }
@@ -108,12 +108,12 @@ public abstract class SingleTableBase implements Serializable, Base<SingleTableB
     @ManyToMany
     @JoinTable(name = "single_table_map")
     @MapKeyColumn(name = "stm_map_key", nullable = false, length = 20)
-    public Map<String, SingleTableBase> getMap() {
+    public Map<SingleTableBase, SingleTableBase> getMap() {
         return map;
     }
 
     @Override
-    public void setMap(Map<String, ? extends SingleTableBase> map) {
-        this.map = (Map<String, SingleTableBase>) map;
+    public void setMap(Map<? extends SingleTableBase, ? extends SingleTableBase> map) {
+        this.map = (Map<SingleTableBase, SingleTableBase>) map;
     }
 }

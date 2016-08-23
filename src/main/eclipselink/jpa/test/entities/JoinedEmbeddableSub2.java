@@ -25,7 +25,7 @@ public class JoinedEmbeddableSub2 implements Sub2Embeddable<JoinedBase>, Seriali
     private JoinedBase sub2Parent;
     private List<JoinedBase> sub2List = new ArrayList<>();
     private Set<JoinedSub2> sub2Children = new HashSet<>();
-    private Map<String, JoinedBase> sub2Map = new HashMap<>();
+    private Map<JoinedBase, JoinedBase> sub2Map = new HashMap<>();
 
     public JoinedEmbeddableSub2() {
     }
@@ -87,12 +87,12 @@ public class JoinedEmbeddableSub2 implements Sub2Embeddable<JoinedBase>, Seriali
 //    @ManyToMany
 //    @JoinTable(name = "joined_embeddable_2_map")
 //    @MapKeyColumn(name = "jes2m_map_key", nullable = false, length = 20)
-    public Map<String, JoinedBase> getSub2Map() {
+    public Map<JoinedBase, JoinedBase> getSub2Map() {
         return sub2Map;
     }
 
     @Override
-    public void setSub2Map(Map<String, ? extends JoinedBase> sub2Map) {
-        this.sub2Map = (Map<String, JoinedBase>) sub2Map;
+    public void setSub2Map(Map<? extends JoinedBase, ? extends JoinedBase> sub2Map) {
+        this.sub2Map = (Map<JoinedBase, JoinedBase>) sub2Map;
     }
 }

@@ -26,7 +26,7 @@ public class TablePerClassEmbeddable implements BaseEmbeddable<TablePerClassBase
     private TablePerClassBase parent;
     private Set<TablePerClassBase> children = new HashSet<>();
     private List<TablePerClassBase> list = new ArrayList<>();
-    private Map<String, TablePerClassBase> map = new HashMap<>();
+    private Map<TablePerClassBase, TablePerClassBase> map = new HashMap<>();
 
     public TablePerClassEmbeddable() {
     }
@@ -79,12 +79,12 @@ public class TablePerClassEmbeddable implements BaseEmbeddable<TablePerClassBase
     // We can't have a constraint in this case because we don't know the exact table this will refer to
     @JoinTable(name = "table_per_class_embeddable_map", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     @MapKeyColumn(name = "tpcem_map_key", nullable = false, length = 20)
-    public Map<String, TablePerClassBase> getMap() {
+    public Map<TablePerClassBase, TablePerClassBase> getMap() {
         return map;
     }
 
     @Override
-    public void setMap(Map<String, ? extends TablePerClassBase> map) {
-        this.map = (Map<String, TablePerClassBase>) map;
+    public void setMap(Map<? extends TablePerClassBase, ? extends TablePerClassBase> map) {
+        this.map = (Map<TablePerClassBase, TablePerClassBase>) map;
     }
 }

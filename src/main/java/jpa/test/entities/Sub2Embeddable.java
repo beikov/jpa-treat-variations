@@ -23,8 +23,8 @@ public interface Sub2Embeddable<T extends Base> {
 
     public void setSub2Children(Set<? extends T> sub2Children);
 
-    public Map<String, ? extends T> getSub2Map();
+    public Map<? extends T, ? extends T> getSub2Map();
 
-    public void setSub2Map(Map<String, ? extends T> sub2Map);
+    public void setSub2Map(Map<? extends T, ? extends T> sub2Map);
     
 }

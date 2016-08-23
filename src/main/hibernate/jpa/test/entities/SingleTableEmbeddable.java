@@ -24,7 +24,7 @@ public class SingleTableEmbeddable implements BaseEmbeddable<SingleTableBase>, S
     private SingleTableBase parent;
     private List<SingleTableBase> list = new ArrayList<>();
     private Set<SingleTableBase> children = new HashSet<>();
-    private Map<String, SingleTableBase> map = new HashMap<>();
+    private Map<SingleTableBase, SingleTableBase> map = new HashMap<>();
 
     public SingleTableEmbeddable() {
     }
@@ -74,12 +74,12 @@ public class SingleTableEmbeddable implements BaseEmbeddable<SingleTableBase>, S
     @ManyToMany
     @JoinTable(name = "single_table_embeddable_map")
     @MapKeyColumn(name = "stem_map_key", nullable = false, length = 20)
-    public Map<String, SingleTableBase> getMap() {
+    public Map<SingleTableBase, SingleTableBase> getMap() {
         return map;
     }
 
     @Override
-    public void setMap(Map<String, ? extends SingleTableBase> map) {
-        this.map = (Map<String, SingleTableBase>) map;
+    public void setMap(Map<? extends SingleTableBase, ? extends SingleTableBase> map) {
+        this.map = (Map<SingleTableBase, SingleTableBase>) map;
     }
 }

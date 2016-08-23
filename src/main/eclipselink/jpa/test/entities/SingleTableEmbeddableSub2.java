@@ -25,7 +25,7 @@ public class SingleTableEmbeddableSub2 implements Sub2Embeddable<SingleTableBase
     private SingleTableBase sub2Parent;
     private List<SingleTableBase> sub2List = new ArrayList<>();
     private Set<SingleTableSub2> sub2Children = new HashSet<>();
-    private Map<String, SingleTableBase> sub2Map = new HashMap<>();
+    private Map<SingleTableBase, SingleTableBase> sub2Map = new HashMap<>();
 
     public SingleTableEmbeddableSub2() {
     }
@@ -87,12 +87,12 @@ public class SingleTableEmbeddableSub2 implements Sub2Embeddable<SingleTableBase
 //    @ManyToMany
 //    @JoinTable(name = "single_table_embeddable_2_map")
 //    @MapKeyColumn(name = "stes2m_map_key", nullable = false, length = 20)
-    public Map<String, SingleTableBase> getSub2Map() {
+    public Map<SingleTableBase, SingleTableBase> getSub2Map() {
         return sub2Map;
     }
 
     @Override
-    public void setSub2Map(Map<String, ? extends SingleTableBase> sub2Map) {
-        this.sub2Map = (Map<String, SingleTableBase>) sub2Map;
+    public void setSub2Map(Map<? extends SingleTableBase, ? extends SingleTableBase> sub2Map) {
+        this.sub2Map = (Map<SingleTableBase, SingleTableBase>) sub2Map;
     }
 }

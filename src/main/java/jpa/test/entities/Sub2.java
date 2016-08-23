@@ -35,8 +35,8 @@ public interface Sub2<T extends Base, B extends BaseEmbeddable<T>, B2 extends Su
 
     public void setChildren2(Set<? extends T> children2);
 
-    public Map<String, ? extends T> getMap2();
+    public Map<? extends T, ? extends T> getMap2();
 
-    public void setMap2(Map<String, ? extends T> map2);
+    public void setMap2(Map<? extends T, ? extends T> map2);
     
 }

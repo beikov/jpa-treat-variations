@@ -19,8 +19,8 @@ public interface BaseEmbeddable<T extends Base> {
 
     public void setChildren(Set<? extends T> children);
 
-    public Map<String, ? extends T> getMap();
+    public Map<? extends T, ? extends T> getMap();
 
-    public void setMap(Map<String, ? extends T> map);
+    public void setMap(Map<? extends T, ? extends T> map);
     
 }

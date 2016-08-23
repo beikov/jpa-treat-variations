@@ -17,7 +17,7 @@ public abstract class JoinedBase implements Serializable, Base<JoinedBase, Joine
     private JoinedEmbeddable embeddable = new JoinedEmbeddable();
     private List<JoinedBase> list = new ArrayList<>();
     private Set<JoinedBase> children = new HashSet<>();
-    private Map<String, JoinedBase> map = new HashMap<>();
+    private Map<JoinedBase, JoinedBase> map = new HashMap<>();
 
     public JoinedBase() {
     }
@@ -108,12 +108,12 @@ public abstract class JoinedBase implements Serializable, Base<JoinedBase, Joine
     @ManyToMany
     @JoinTable(name = "joined_map")
     @MapKeyColumn(name = "jm_map_key", nullable = false, length = 20)
-    public Map<String, JoinedBase> getMap() {
+    public Map<JoinedBase, JoinedBase> getMap() {
         return map;
     }
 
     @Override
-    public void setMap(Map<String, ? extends JoinedBase> map) {
-        this.map = (Map<String, JoinedBase>) map;
+    public void setMap(Map<? extends JoinedBase, ? extends JoinedBase> map) {
+        this.map = (Map<JoinedBase, JoinedBase>) map;
     }
 }

@@ -40,7 +40,7 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("treatJoinManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent => 4 instance
+        // Left join on b.parent => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, null);
@@ -66,8 +66,8 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("treatJoinMultipleManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
-        // Left join on b.parent2 => 4 instance
+        // Left join on b.parent => 4 instances
+        // Left join on b.parent => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, new Object[] { null, null });
         assertRemoved(bases, new Object[] { null, null });
@@ -145,7 +145,7 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("treatJoinEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent => 4 instance
+        // Left join on b.embeddable.parent => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, null);
@@ -171,8 +171,8 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("treatJoinMultipleEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
-        // Left join on b.parent2 => 4 instance
+        // Left join on b.embeddable.parent => 4 instances
+        // Left join on b.embeddable.parent => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, new Object[] { null, null });
         assertRemoved(bases, new Object[] { null, null });
@@ -234,7 +234,7 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
     
     @Test
     // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
-    public void joinTreatedRoot() {
+    public void joinTreatedRootManyToOne() {
         // EclipseLink
         // - Joined        : not working, join path parsing fails
         // - SingleTable   : not working, join path parsing fails
@@ -248,10 +248,10 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Integer> bases = list("SELECT s1.value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1", Integer.class);
-        System.out.println("joinTreatedRoot-" + strategy);
+        System.out.println("joinTreatedRootManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
+        // Left join on b.parent1 => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, null);
@@ -261,7 +261,7 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
     
     @Test
     // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
-    public void joinMultipleTreatedRoot() {
+    public void joinMultipleTreatedRootManyToOne() {
         // EclipseLink
         // - Joined        : not working, join path parsing fails
         // - SingleTable   : not working, join path parsing fails
@@ -275,11 +275,11 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Object[]> bases = list("SELECT s1.value, s2.value FROM " + strategy + "Base b LEFT JOIN TREAT(b AS " + strategy + "Sub1).parent1 s1 LEFT JOIN TREAT(b AS " + strategy + "Sub2).parent2 s2", Object[].class);
-        System.out.println("joinMultipleTreatedRoot-" + strategy);
+        System.out.println("joinMultipleTreatedRootManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
-        // Left join on b.parent2 => 4 instance
+        // Left join on b.parent1 => 4 instances
+        // Left join on b.parent2 => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, new Object[] { null, null });
         assertRemoved(bases, new Object[] { null, null });
@@ -360,7 +360,7 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("joinTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
+        // Left join on b.embeddable.sub1Parent => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, null);
@@ -387,8 +387,8 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("joinMultipleTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
-        // Left join on b.parent2 => 4 instance
+        // Left join on b.embeddable1.sub1Parent => 4 instances
+        // Left join on b.embeddable2.sub2Parent => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, new Object[] { null, null });
         assertRemoved(bases, new Object[] { null, null });
@@ -452,7 +452,7 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
     
     @Test
     // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
-    public void treatJoinTreatedRoot() {
+    public void treatJoinTreatedRootManyToOne() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because join for parent1 has inner join semantics
         // - SingleTable   : issues 1 query, FAILS because join for parent1 has inner join semantics
@@ -466,10 +466,10 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Integer> bases = list("SELECT s1.sub1Value FROM " + strategy + "Base b LEFT JOIN TREAT(TREAT(b AS " + strategy + "Sub1).parent1 AS " + strategy + "Sub1) AS s1", Integer.class);
-        System.out.println("treatJoinTreatedRoot-" + strategy);
+        System.out.println("treatJoinTreatedRootManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
+        // Left join on b.parent1 => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, null);
@@ -479,7 +479,7 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
     
     @Test
     // NOTE: This is a special case that the JPA spec does not cover but is required to make TREAT complete
-    public void treatJoinMultipleTreatedRoot() {
+    public void treatJoinMultipleTreatedRootManyToOne() {
         // EclipseLink
         // - Joined        : issues 1 query, FAILS because join for parent1 and parent2 have inner join semantics
         // - SingleTable   : issues 1 query, FAILS because join for parent1 and parent2 have inner join semantics
@@ -493,11 +493,11 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         // - SingleTable   : 
         // - TablePerClass : 
         List<Object[]> bases = list("SELECT s1.sub1Value, s2.sub2Value FROM " + strategy + "Base b LEFT JOIN TREAT(TREAT(b AS " + strategy + "Sub1).parent1 AS " + strategy + "Sub1) AS s1 LEFT JOIN TREAT(TREAT(b AS " + strategy + "Sub2).parent2 AS " + strategy + "Sub2) AS s2", Object[].class);
-        System.out.println("treatJoinMultipleTreatedRoot-" + strategy);
+        System.out.println("treatJoinMultipleTreatedRootManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
-        // Left join on b.parent2 => 4 instance
+        // Left join on b.parent1 => 4 instances
+        // Left join on b.parent2 => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, new Object[] { null, null });
         assertRemoved(bases, new Object[] { null, null });
@@ -578,7 +578,7 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("treatJoinTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
+        // Left join on b.embeddable1.sub1Parent => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, null);
         assertRemoved(bases, null);
@@ -605,8 +605,8 @@ public class JoinManyToOneTest extends AbstractTreatVariationsTest {
         System.out.println("treatJoinMultipleTreatedRootEmbeddableManyToOne-" + strategy);
         
         // From => 4 instances
-        // Left join on b.parent1 => 4 instance
-        // Left join on b.parent2 => 4 instance
+        // Left join on b.embeddable1.sub1Parent => 4 instances
+        // Left join on b.embeddable2.sub2Parent => 4 instances
         Assert.assertEquals(4, bases.size());
         assertRemoved(bases, new Object[] { null, null });
         assertRemoved(bases, new Object[] { null, null });

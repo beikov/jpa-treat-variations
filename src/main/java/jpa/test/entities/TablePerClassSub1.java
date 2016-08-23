@@ -42,11 +42,11 @@ public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePe
     private Integer sub1Value;
     private IntValueEmbeddable sub1Embeddable = new IntValueEmbeddable();
     private List<TablePerClassBase> list = new ArrayList<>();
-    private Map<String, TablePerClassBase> map = new HashMap<>();
+    private Map<TablePerClassBase, TablePerClassBase> map = new HashMap<>();
     private TablePerClassEmbeddableSub1 embeddable1 = new TablePerClassEmbeddableSub1();
     private List<TablePerClassBase> list1 = new ArrayList<>();
     private Set<TablePerClassBase> children1 = new HashSet<>();
-    private Map<String, TablePerClassBase> map1 = new HashMap<>();
+    private Map<TablePerClassBase, TablePerClassBase> map1 = new HashMap<>();
 
     public TablePerClassSub1() {
     }
@@ -130,13 +130,13 @@ public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePe
     // We can't have a constraint in this case because we don't know the exact table this will refer to
     @JoinTable(name = "table_per_class_sub_1_map", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     @MapKeyColumn(name = "tpcs1m_map_key", nullable = false, length = 20)
-    public Map<String, TablePerClassBase> getMap() {
+    public Map<TablePerClassBase, TablePerClassBase> getMap() {
         return map;
     }
 
     @Override
-    public void setMap(Map<String, ? extends TablePerClassBase> map) {
-        this.map = (Map<String, TablePerClassBase>) map;
+    public void setMap(Map<? extends TablePerClassBase, ? extends TablePerClassBase> map) {
+        this.map = (Map<TablePerClassBase, TablePerClassBase>) map;
     }
 
     @Override
@@ -169,12 +169,12 @@ public class TablePerClassSub1 extends TablePerClassBase implements Sub1<TablePe
     // We can't have a constraint in this case because we don't know the exact table this will refer to
     @JoinTable(name = "table_per_class_sub_1_map_1", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     @MapKeyColumn(name = "tpcs1m1_map_key", nullable = false, length = 20)
-    public Map<String, TablePerClassBase> getMap1() {
+    public Map<TablePerClassBase, TablePerClassBase> getMap1() {
         return map1;
     }
 
     @Override
-    public void setMap1(Map<String, ? extends TablePerClassBase> map1) {
-        this.map1 = (Map<String, TablePerClassBase>) map1;
+    public void setMap1(Map<? extends TablePerClassBase, ? extends TablePerClassBase> map1) {
+        this.map1 = (Map<TablePerClassBase, TablePerClassBase>) map1;
     }
 }
