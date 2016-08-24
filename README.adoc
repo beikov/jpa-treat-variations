@@ -17,7 +17,7 @@ There are 2 types of treat expressions
 
 Treat expressions can be used in different forms in different clauses
 
- - In SELECT/WHERE/ORDER BY all types of treat expressions must be followed by a subpath e.g. `TREAT(rootAlias AS Subtype).subpath`
+ - In SELECT/ON/WHERE/GROUP BY/HAVING/ORDER BY all types of treat expressions must be followed by a subpath e.g. `TREAT(rootAlias AS Subtype).subpath`
  - In FROM a treat expression must be one of the following
    * Subpath treat e.g. `TREAT(rootAlias.subpath AS Subtype)`
    * Subpath treat with root path treat e.g. `TREAT(TREAT(rootAlias AS Subtype).subpath AS Subtype)`
@@ -33,7 +33,7 @@ If this assumption can't be fulfilled, the *Association treat - SELECT* tests fo
 * ManyToManyMapKey
 * ManyToManyMapValue
 
-A2. Treats of relations do not cause filtering of the relation or skipping hierarchy joins. A treat of a relation merely gives access to properties of a subtype.
+A2. Treats of relations do not cause filtering of the relation or skipping hierarchy joins. A treat of a relation gives access to the properties of a subtype. For other subtypes the treat will either produce NULL if used in an expression context, or make the embedding predicate produce FALSE if used in a condition context.
 Treat joins may lead to a reduction of the joined tables, but only indirectly(see S3).
 
 A3. Correlated relations do not alter the outer query. If a subquery implicitly joins a relation of a parent join alias via the means of JPA navigation,
@@ -61,6 +61,9 @@ The on clause predicates must be put on the appropriate relation joins on clause
 
 S5. Due to this possible translation strategy the only new feature that needs deep implementation support is a root path treat.
 When translating to SQL, the root path treat must be translated to the alias of the proper subtype relation.
+When the root path treat is used in a condition context, the hosting predicate must be conjuncted with a type constraint.
+This is especially necessary when predicates are negated or null-aware predicates are used like in `TREAT(rootAlias AS Subtype).subpath IS NULL`.
+If the type constraint is missing, the subtype relation might also match non-subtypes. Therefore it should roughly translate to `TYPE(rootAlias) = Subtype AND TREAT(rootAlias AS Subtype).subpath IS NULL`.
 
 == Possible optimizations
 
@@ -81,6 +84,13 @@ Subpath treats can be replaced with root path treats by adding inner joins for p
 only the type restrictions do.
 
 == Attention
+
+=== Access super type properties in subtype treated root path
+
+Treating a root path as a subtype must always produce a value for instances that are a subtype and no value for other instance.
+One might wrongly think that when accessing a property that is declared in the static type of a root path or one of it's super types, that the treat can be eliminated.
+Instead the expression must produce a NULL value for instances that are not a subtype of the treated path.
+The expression `TREAT(rootAlias AS Subtype).supertypeProperty` must be semantically treated like `CASE WHEN TYPE(rootAlias) = Subtype THEN rootAlias.supertypeProperty END`
 
 === Multiple distinct subtype relation joins
 
