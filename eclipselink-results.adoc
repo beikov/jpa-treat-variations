@@ -18,6 +18,14 @@
 | whereMultipleTreatedRootBasic                                     |:fail:                   |:fail:                   |:fail:                   
 | whereTreatedRootEmbeddableBasic                                   |:fail:                   |:fail:                   |:fail:                   
 | whereMultipleTreatedRootEmbeddableBasic                           |:fail:                   |:fail:                   |:fail:                   
+| whereTreatedRootConditionBasic                                    |:pass:                   |:pass:                   |:fail:                   
+| whereMultipleTreatedRootConditionBasic                            |:pass:                   |:pass:                   |:fail:                   
+| whereTreatedRootConditionEmbeddableBasic                          |:pass:                   |:pass:                   |:fail:                   
+| whereMultipleTreatedRootConditionEmbeddableBasic                  |:pass:                   |:pass:                   |:fail:                   
+| whereTreatedRootConditionNegated                                  |:fail:                   |:fail:                   |:fail:                   
+| whereMultipleTreatedRootConditionNegated                          |:fail:                   |:fail:                   |:fail:                   
+| whereTreatedRootConditionSuperTypeAccess                          |:pass:                   |:pass:                   |:fail:                   
+| whereMultipleTreatedRootConditionSuperTypeAccess                  |:pass:                   |:pass:                   |:fail:                   
 |=================================================================================================================================================
 
     

@@ -336,4 +336,194 @@ public class RootTreatTest extends AbstractTreatVariationsTest {
         assertRemoved(bases, objectPrefix + "2");
     }
     
+    @Test
+    public void whereTreatedRootConditionBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE TREAT(b AS " + strategy + "Sub1).sub1Value = 101", String.class);
+        System.out.println("whereTreatedRootConditionBasic-" + strategy);
+        
+        // From => 4 instances
+        // Where => 1 instance because 1 Sub1 has sub1Value 101
+        Assert.assertEquals(1, bases.size());
+        assertRemoved(bases, objectPrefix + "1.parent");
+    }
+    
+    @Test
+    public void whereMultipleTreatedRootConditionBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE TREAT(b AS " + strategy + "Sub1).sub1Value = 101 OR TREAT(b AS " + strategy + "Sub2).sub2Value = 102", String.class);
+        System.out.println("whereMultipleTreatedRootConditionBasic-" + strategy);
+        
+        // From => 4 instances
+        // Where => 2 instances because 1 Sub1 has sub1Value 101 and 1 Sub2 has sub2Value 102
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, objectPrefix + "1.parent");
+        assertRemoved(bases, objectPrefix + "2.parent");
+    }
+    
+    @Test
+    public void whereTreatedRootConditionEmbeddableBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue = 101", String.class);
+        System.out.println("whereTreatedRootConditionEmbeddableBasic-" + strategy);
+        
+        // From => 4 instances
+        // Where => 1 instance because 1 Sub1 has sub1SomeValue 101
+        Assert.assertEquals(1, bases.size());
+        assertRemoved(bases, objectPrefix + "1.parent");
+    }
+    
+    @Test
+    public void whereMultipleTreatedRootConditionEmbeddableBasic() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE TREAT(b AS " + strategy + "Sub1).embeddable1.sub1SomeValue = 101 OR TREAT(b AS " + strategy + "Sub2).embeddable2.sub2SomeValue = 102", String.class);
+        System.out.println("whereMultipleTreatedRootConditionEmbeddableBasic-" + strategy);
+        
+        // From => 4 instances
+        // Where => 2 instances because 1 Sub1 has sub1SomeValue 101 and 1 Sub2 has sub2SomeValue 102
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, objectPrefix + "1.parent");
+        assertRemoved(bases, objectPrefix + "2.parent");
+    }
+    
+    @Test
+    public void whereTreatedRootConditionNegated() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype, NOT not applied to type constraint
+        // - SingleTable   : issues 1 query, FAILS because filters subtype, NOT not applied to type constraint
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE NOT(TREAT(b AS " + strategy + "Sub1).sub1Value = 101)", String.class);
+        System.out.println("whereTreatedRootConditionNegated-" + strategy);
+        
+        // From => 4 instances
+        // Where => 3 instances because 1 Sub1 has sub1Value 101, the other has 1 and Sub2s are included because type constraint is inverted
+        Assert.assertEquals(3, bases.size());
+        assertRemoved(bases, objectPrefix + "1");
+        assertRemoved(bases, objectPrefix + "2");
+        assertRemoved(bases, objectPrefix + "2.parent");
+    }
+    
+    @Test
+    public void whereMultipleTreatedRootConditionNegated() {
+        // EclipseLink
+        // - Joined        : issues 1 query, FAILS because filters subtype, NOT not applied to type constraint
+        // - SingleTable   : issues 1 query, FAILS because filters subtype, NOT not applied to type constraint
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE NOT(TREAT(b AS " + strategy + "Sub1).sub1Value = 101) AND NOT(TREAT(b AS " + strategy + "Sub2).sub2Value = 102)", String.class);
+        System.out.println("whereMultipleTreatedRootConditionNegated-" + strategy);
+        
+        // From => 4 instances
+        // Where => 2 instances because 1 Sub1 has sub1Value 101 and 1 Sub2 has sub2Value 102
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, objectPrefix + "1");
+        assertRemoved(bases, objectPrefix + "2");
+    }
+    
+    @Test
+    public void whereTreatedRootConditionSuperTypeAccess() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE TREAT(b AS " + strategy + "Sub1).value > 100", String.class);
+        System.out.println("whereTreatedRootConditionSuperTypeAccess-" + strategy);
+        
+        // From => 4 instances
+        // Where => 1 instance because 1 Sub1 has value 101, the other has 1 and Sub2s are excluded because of type constraint
+        Assert.assertEquals(1, bases.size());
+        assertRemoved(bases, objectPrefix + "1.parent");
+    }
+    
+    @Test
+    public void whereMultipleTreatedRootConditionSuperTypeAccess() {
+        // EclipseLink
+        // - Joined        : issues 1 query, all successful
+        // - SingleTable   : issues 1 query, all successful
+        // - TablePerClass : not working, strategy unsupported
+        // Hibernate
+        // - Joined        : not working, treated paths unsupported
+        // - SingleTable   : not working, treated paths unsupported
+        // - TablePerClass : not working, treated paths unsupported
+        // DataNucleus
+        // - Joined        : 
+        // - SingleTable   : 
+        // - TablePerClass : 
+        List<String> bases = list("SELECT b.name FROM " + strategy + "Base b WHERE TREAT(b AS " + strategy + "Sub1).value > 100 OR TREAT(b AS " + strategy + "Sub2).value < 100", String.class);
+        System.out.println("whereMultipleTreatedRootConditionSuperTypeAccess-" + strategy);
+        
+        // From => 4 instances
+        // Where => 2 instances because 1 Sub1 has value 101 and 1 Sub2 has value 102 the has value 1
+        Assert.assertEquals(2, bases.size());
+        assertRemoved(bases, objectPrefix + "1.parent");
+        assertRemoved(bases, objectPrefix + "2");
+    }
+    
 }

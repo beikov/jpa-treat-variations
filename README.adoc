@@ -112,6 +112,12 @@ Now it is clear that this can't produce any results because `alias` can't be bot
 Special care has to be taken when having multiple distinct subtypes that share common columns in a single table inheritance.
 Since in that case a column could have a non-NULL value, an expression like `TREAT(alias AS Subtype).subpath` must be semantically treated like `CASE WHEN TYPE(alias) = Subtype THEN TREAT(alias AS Subtype).subpath END`.
 
+=== Treated property returning case when with null-aware predicate
+
+A construct like e.g. `CASE WHEN ... THEN TREAT(alias AS Subtype).subpath END IS NULL`, although not legal in JPQL might still be supported by a JPA provider.
+Null-aware predicates must be embedded into the result expression of case-when expressions semantically to have the hosting predicate, in this case the *IS NULL*, evaluate to FALSE.
+The result will be similar to `CASE WHEN ... THEN TREAT(alias AS Subtype).subpath IS NULL END`.
+
 == Findings so far
 
 EclipseLink
@@ -139,17 +145,21 @@ The following should illustrate which test, tests which expression. Every test c
 
 === Root treat
 
-|======================================================================================================
-|Name                                                          |Expression                             
-|**SELECT**                                                    |                                       
-| selectTreatedRootBasic:                                      |`TREAT(root).property`                 
-| selectTreatedParentRootBasic:                                |`TREAT(parentRoot).property`           
-| selectTreatedRootEmbeddableBasic:                            |`TREAT(root).embeddable.property`      
-| selectTreatedParentRootEmbeddableBasic:                      |`TREAT(parentRoot).embeddable.property`
-|**WHERE**                                                     |                                       
-| whereTreatedRootBasic:                                       |`TREAT(root).property`                 
-| whereTreatedRootEmbeddableBasic:                             |`TREAT(root).embeddable.property`      
-|======================================================================================================
+|=======================================================================================================================
+|Name                                                          |Expression                                              
+|**SELECT**                                                    |                                                        
+| selectTreatedRootBasic:                                      |`TREAT(root).property`                                  
+| selectTreatedParentRootBasic:                                |`TREAT(parentRoot).property`                            
+| selectTreatedRootEmbeddableBasic:                            |`TREAT(root).embeddable.property`                       
+| selectTreatedParentRootEmbeddableBasic:                      |`TREAT(parentRoot).embeddable.property`                 
+|**WHERE**                                                     |                                                        
+| whereTreatedRootBasic:                                       |`COALESCE(TREAT(root).property) OPERATOR ...`           
+| whereTreatedRootEmbeddableBasic:                             |`COALESCE(TREAT(root).embeddable.property) OPERATOR ...`
+| whereTreatedRootConditionBasic:                              |`TREAT(root).property OPERATOR ...`                     
+| whereTreatedRootConditionEmbeddableBasic:                    |`TREAT(root).embeddable.property OPERATOR ...`          
+| whereTreatedRootConditionNegated:                            |`NOT(TREAT(root).property OPERATOR ...)`                
+| whereTreatedRootConditionSuperTypeAccess:                    |`TREAT(root).superTypeProperty OPERATOR ...`            
+|=======================================================================================================================
 
 
 === Association treat
@@ -200,7 +210,7 @@ Possible associations
 Issues
 
  1. [[EL1]] treat with TABLE_PER_CLASS inheritance strategy is unsupported
- 2. [[EL2]] filters when encounters treat: Filtering a relation should only be done when the treat is in the FROM clause
+ 2. [[EL2]] filters when encounters treat: Filtering a relation should only be done when the treat is in the FROM clause or in predicates by adding a type constraint conjunction
  3. [[EL3]] treat of KEY not supported
  4. [[EL4]] dereference after treat leads to "cannot be resolved to a collection type" or "cannot be resolved to a valid type"
  5. [[EL5]] wrongly complains about "cast outside of an inheritance hierarchy"
@@ -210,6 +220,7 @@ Issues
  9. [[EL9]] left join semantics not properly propagated
  10. [[EL10]] treat as root in subquery FROM not supported
  11. [[EL11]] treat join of map value results in a NPE during SQL rendering
+ 12. [[EL12]] negation is not applied to type constraint of treat
 
 ==== Treat root
 
@@ -230,6 +241,14 @@ Issues
 | whereMultipleTreatedRootBasic                                     |{fail}    ^<<EL2>>^      |{fail}    ^<<EL2>>^      |{fail}    ^<<EL1>>^     
 | whereTreatedRootEmbeddableBasic                                   |{fail}    ^<<EL2>>^      |{fail}    ^<<EL2>>^      |{fail}    ^<<EL1>>^     
 | whereMultipleTreatedRootEmbeddableBasic                           |{fail}    ^<<EL2>>^      |{fail}    ^<<EL2>>^      |{fail}    ^<<EL1>>^     
+| whereTreatedRootConditionBasic                                    |{pass}                   |{pass}                   |{fail}    ^<<EL1>>^     
+| whereMultipleTreatedRootConditionBasic                            |{pass}                   |{pass}                   |{fail}    ^<<EL1>>^     
+| whereTreatedRootConditionEmbeddableBasic                          |{pass}                   |{pass}                   |{fail}    ^<<EL1>>^     
+| whereMultipleTreatedRootConditionEmbeddableBasic                  |{pass}                   |{pass}                   |{fail}    ^<<EL1>>^     
+| whereTreatedRootConditionNegated                                  |{fail}    ^<<EL12>>^     |{fail}    ^<<EL12>>^     |{fail}    ^<<EL1>>^     
+| whereMultipleTreatedRootConditionNegated                          |{fail}    ^<<EL12>>^     |{fail}    ^<<EL12>>^     |{fail}    ^<<EL1>>^     
+| whereTreatedRootConditionSuperTypeAccess                          |{pass}                   |{pass}                   |{fail}    ^<<EL1>>^     
+| whereMultipleTreatedRootConditionSuperTypeAccess                  |{pass}                   |{pass}                   |{fail}    ^<<EL1>>^     
 |=================================================================================================================================================
 
 ==== Association treat
@@ -420,7 +439,7 @@ Issues
  5. [[HH5]] joining treated roots not supported
  6. [[HH6]] treat of KEY not supported
  7. [[HH7]] joining just the last collection table instead of the union over all
- 8. [[HH8]] filters when encounters treat: Filtering a relation should only be done when the treat is in the FROM clause
+ 8. [[HH8]] filters when encounters treat: Filtering a relation should only be done when the treat is in the FROM clause or in predicates by adding a type constraint conjunction
  
 
 ==== Treat root
@@ -442,6 +461,14 @@ Issues
 | whereMultipleTreatedRootBasic                                     |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
 | whereTreatedRootEmbeddableBasic                                   |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
 | whereMultipleTreatedRootEmbeddableBasic                           |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
+| whereTreatedRootConditionBasic                                    |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
+| whereMultipleTreatedRootConditionBasic                            |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
+| whereTreatedRootConditionEmbeddableBasic                          |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
+| whereMultipleTreatedRootConditionEmbeddableBasic                  |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
+| whereTreatedRootConditionNegated                                  |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
+| whereMultipleTreatedRootConditionNegated                          |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
+| whereTreatedRootConditionSuperTypeAccess                          |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
+| whereMultipleTreatedRootConditionSuperTypeAccess                  |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^      |{fail}    ^<<HH2>>^           
 |=================================================================================================================================================
 
 ==== Association treat

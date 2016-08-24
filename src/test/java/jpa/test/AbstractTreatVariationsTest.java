@@ -150,7 +150,7 @@ public abstract class AbstractTreatVariationsTest {
         s2Parent.setSub2Value(102);
         s2Parent.getSub2Embeddable().setSomeValue(102);
         s2Parent.getEmbeddable2().setSub2SomeValue(102);
-        s2.setValue(102);
+        s2.setValue(2);
         s2.setSub2Value(2);
         s2.getEmbeddable2().setSub2SomeValue(2);
         s2.setRelation2(i1);
