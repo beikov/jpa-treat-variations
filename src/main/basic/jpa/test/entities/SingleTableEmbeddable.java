@@ -18,67 +18,68 @@ import javax.persistence.OrderColumn;
 import javax.persistence.Transient;
 
 @Embeddable
-public class JoinedEmbeddable implements BaseEmbeddable<JoinedBase>, Serializable {
+public class SingleTableEmbeddable implements BaseEmbeddable<SingleTableBase>, Serializable {
     private static final long serialVersionUID = 1L;
 
-    private JoinedBase parent;
-    private List<JoinedBase> list = new ArrayList<>();
-    private Set<JoinedBase> children = new HashSet<>();
-    private Map<JoinedBase, JoinedBase> map = new HashMap<>();
+    private SingleTableBase parent;
+    private List<SingleTableBase> list = new ArrayList<>();
+    private Set<SingleTableBase> children = new HashSet<>();
+    private Map<SingleTableBase, SingleTableBase> map = new HashMap<>();
 
-    public JoinedEmbeddable() {
+    public SingleTableEmbeddable() {
     }
 
-    public JoinedEmbeddable(JoinedBase parent) {
+    public SingleTableEmbeddable(SingleTableBase parent) {
         this.parent = parent;
     }
 
     @Override
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "embeddableParent")
-    public JoinedBase getParent() {
+    public SingleTableBase getParent() {
         return parent;
     }
 
     @Override
-    public void setParent(JoinedBase parent) {
+    public void setParent(SingleTableBase parent) {
         this.parent = parent;
     }
 
     @Override
     @ManyToMany
     @OrderColumn(name = "list_idx", nullable = false)
-    @JoinTable(name = "joined_embeddable_list")
-    public List<JoinedBase> getList() {
+    @JoinTable(name = "single_table_embeddable_list")
+    public List<SingleTableBase> getList() {
         return list;
     }
 
     @Override
-    public void setList(List<? extends JoinedBase> list) {
-        this.list = (List<JoinedBase>) list;
+    public void setList(List<? extends SingleTableBase> list) {
+        this.list = (List<SingleTableBase>) list;
     }
 
     @Override
     @OneToMany
+    @JoinTable(name = "single_table_embeddable_children")
     @JoinColumn(name = "embeddableParent")
-    public Set<JoinedBase> getChildren() {
+    public Set<SingleTableBase> getChildren() {
         return children;
     }
 
     @Override
-    public void setChildren(Set<? extends JoinedBase> children) {
-        this.children = (Set<JoinedBase>) children;
+    public void setChildren(Set<? extends SingleTableBase> children) {
+        this.children = (Set<SingleTableBase>) children;
     }
 
     // Apparently EclipseLink does not support mapping a map in an embeddable
     @Override
     @Transient
-    public Map<JoinedBase, JoinedBase> getMap() {
+    public Map<SingleTableBase, SingleTableBase> getMap() {
         return map;
     }
 
     @Override
-    public void setMap(Map<? extends JoinedBase, ? extends JoinedBase> map) {
-        this.map = (Map<JoinedBase, JoinedBase>) map;
+    public void setMap(Map<? extends SingleTableBase, ? extends SingleTableBase> map) {
+        this.map = (Map<SingleTableBase, SingleTableBase>) map;
     }
 }

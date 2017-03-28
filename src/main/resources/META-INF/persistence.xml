@@ -2,15 +2,25 @@
 <persistence version="2.1" xmlns="http://xmlns.jcp.org/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence http://xmlns.jcp.org/xml/ns/persistence/persistence_2_1.xsd">
   <persistence-unit name="TestPU" transaction-type="RESOURCE_LOCAL">
     <class>jpa.test.entities.IntIdEntity</class>
+    <class>jpa.test.entities.IntValueEmbeddable</class>
     <class>jpa.test.entities.JoinedBase</class>
     <class>jpa.test.entities.JoinedSub1</class>
     <class>jpa.test.entities.JoinedSub2</class>
+    <class>jpa.test.entities.JoinedEmbeddable</class>
+    <class>jpa.test.entities.JoinedEmbeddableSub1</class>
+    <class>jpa.test.entities.JoinedEmbeddableSub2</class>
     <class>jpa.test.entities.SingleTableBase</class>
     <class>jpa.test.entities.SingleTableSub1</class>
     <class>jpa.test.entities.SingleTableSub2</class>
+    <class>jpa.test.entities.SingleTableEmbeddable</class>
+    <class>jpa.test.entities.SingleTableEmbeddableSub1</class>
+    <class>jpa.test.entities.SingleTableEmbeddableSub2</class>
     <class>jpa.test.entities.TablePerClassBase</class>
     <class>jpa.test.entities.TablePerClassSub1</class>
     <class>jpa.test.entities.TablePerClassSub2</class>
+    <class>jpa.test.entities.TablePerClassEmbeddable</class>
+    <class>jpa.test.entities.TablePerClassEmbeddableSub1</class>
+    <class>jpa.test.entities.TablePerClassEmbeddableSub2</class>
     <shared-cache-mode>NONE</shared-cache-mode>
     <properties>
       <property name="javax.persistence.jdbc.url" value="jdbc:h2:mem:test;TRACE_LEVEL_SYSTEM_OUT=2"/>

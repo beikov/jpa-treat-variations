@@ -11,9 +11,10 @@
         <maven.compiler.source>1.7</maven.compiler.source>
         <maven.compiler.target>1.7</maven.compiler.target>
 		
-        <version.datanucleus.base>5.0.1-SNAPSHOT</version.datanucleus.base>
-        <version.datanucleus.jpa>5.0.1-SNAPSHOT</version.datanucleus.jpa>
-        <version.hibernate>5.2.2.Final</version.hibernate>
+        <version.datanucleus.base>5.0.8</version.datanucleus.base>
+        <version.datanucleus.jpa-api>5.0.11</version.datanucleus.jpa-api>
+        <version.datanucleus.jpa>5.0.1</version.datanucleus.jpa>
+        <version.hibernate>5.2.9.Final</version.hibernate>
         <version.eclipselink>2.6.3</version.eclipselink>
     </properties>
     
@@ -35,7 +36,7 @@
                     <execution>
                         <id>default-cli</id>
                         <phase>manual-invocation</phase>
-                        <configuration>                
+                        <configuration>
                             <target>
                                 <junitreport todir="target/surefire-reports">
                                     <fileset dir="target/surefire-reports">
@@ -103,7 +104,7 @@
                 <dependency>
                     <groupId>org.datanucleus</groupId>
                     <artifactId>datanucleus-api-jpa</artifactId>
-                    <version>${version.datanucleus.base}</version>
+                    <version>${version.datanucleus.jpa-api}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.datanucleus</groupId>
@@ -149,7 +150,7 @@
                                 </goals>
                                 <configuration>
                                     <sources>
-                                        <source>src/main/hibernate</source>
+                                        <source>src/main/basic</source>
                                     </sources>
                                 </configuration>
                             </execution>
@@ -218,7 +219,7 @@
                                 </goals>
                                 <configuration>
                                     <sources>
-                                        <source>src/main/eclipselink</source>
+                                        <source>src/main/basic</source>
                                     </sources>
                                 </configuration>
                             </execution>

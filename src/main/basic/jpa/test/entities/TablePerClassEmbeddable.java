@@ -50,6 +50,7 @@ public class TablePerClassEmbeddable implements BaseEmbeddable<TablePerClassBase
 
     @Override
     @OneToMany
+    @JoinTable(name = "tpc_embeddable_children")
     @JoinColumn(name = "embeddableParent")
     public Set<TablePerClassBase> getChildren() {
         return children;
@@ -64,7 +65,7 @@ public class TablePerClassEmbeddable implements BaseEmbeddable<TablePerClassBase
     @ManyToMany
     @OrderColumn(name = "list_idx", nullable = false)
     // We can't have a constraint in this case because we don't know the exact table this will refer to
-    @JoinTable(name = "table_per_class_embeddable_list", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @JoinTable(name = "tpc_embeddable_list", inverseForeignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     public List<TablePerClassBase> getList() {
         return list;
     }
